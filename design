@@ -1,0 +1,12 @@
+
+> how do we structure this.
+  > do not want conv class.
+  > probably just want PimCore.
+
+> but then we need to accumulate from all the PimCores.
+  > so makes little sense to use model.forward.
+  > more convenient to store list of conv/dense layers inside of PimCore so we can just call forward.
+  
+> how do we slice this all up ? 
+  > for each (normal) layer, cut it up 16 ways, give each slice layer its own slice.
+  > 
