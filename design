@@ -11,3 +11,9 @@
   > for each (normal) layer, cut it up 16 ways, give each slice layer its own slice.
 
 > make it work, then make it good.
+
+----
+
+we still have to do pim convolution
+> we are still doing regular convolution not bit-by-bit pim convolution
+> should have both options to compare throughput.
