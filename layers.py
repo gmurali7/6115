@@ -11,17 +11,10 @@ class Model:
     def __init__(self, layers):
         self.layers = layers
 
-    def forward(self, x):
-        num_examples, _, _, _ = np.shape(x)
+    def cut(self, num_cores):
         num_layers = len(self.layers)
-        
-        y = [None] * num_examples
-        for example in range(num_examples):
-            y[example] = x[example]
-            for layer in range(num_layers):
-                y[example] = self.layers[layer].forward(x=y[example])
-
-        return y
+        for layer in range(num_layers):
+            cuts = self.layers[layer].cut(num_cores=num_cores)
 
 ##############################################
 
@@ -34,6 +27,9 @@ class Layer:
 
     def rpr(self):
         assert(False)
+
+    def cut(self, num_cores):
+        assert (False)
         
 ##############################################
 
@@ -84,7 +80,14 @@ class Conv(Layer):
     def forward(self, x):
         y = conv(x=x, f=self.w, b=self.b, q=self.q, stride=self.s, pad1=self.p1, pad2=self.p2)
         return y
-        
+
+    def cut(self, num_cores):
+        cores = [None] * num_cores
+        for core in range(num_cores):
+            assert ((self.c % num_cores) == 0)
+            cut_c = self.c // num_cores
+            cores[core] = Conv(input_size=(self.h, self.w, cut_c), filter_size=(self.fh, self.fw, cut_c, self.fn), stride=self.stride, pad1=self.pad1, pad2=self.pad2)
+
 ##############################################
 
 class Dense(Layer):
@@ -116,6 +119,10 @@ class Dense(Layer):
         x = np.reshape(x, self.isize)
         y = dot(x=x, f=self.w, b=self.b, q=self.q)
         return y
+
+    def cut(self, num_cores):
+        assert (False)
+
 
 #########################
         

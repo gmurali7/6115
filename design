@@ -9,4 +9,5 @@
   
 > how do we slice this all up ? 
   > for each (normal) layer, cut it up 16 ways, give each slice layer its own slice.
-  > 
+
+> make it work, then make it good.
