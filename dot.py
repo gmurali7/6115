@@ -6,7 +6,8 @@ from conv_utils import conv_output_length
 
 def conv(x, f, b, q, stride, pad1, pad2):
     Hi, Wi, Ci = np.shape(x)
-    Fh, Fw, _, Co = np.shape(f)
+    Fh, Fw, Fc, Co = np.shape(f)
+    assert (Ci == Fc)
     Ho = conv_output_length(Hi, Fh, 'same', stride)
     Wo = conv_output_length(Hi, Fw, 'same', stride)
 

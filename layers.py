@@ -20,8 +20,21 @@ class Network:
         for example in range(num_examples):
             y[example] = x[example]
             for layer in range(self.num_layers):
-                for core in range(self.num_cores):
-                    y[example] += self.cores[core].forward(layer=layer, x=y[example])
+                h, w, c = np.shape(y[example])
+                if c <= 3:
+                    y[example] = self.cores[0].forward(layer=layer, x=y[example])
+                else:
+                    assert ((c % self.num_cores) == 0)
+                    cut_c = c // self.num_cores
+
+                    y_sum = 0
+                    for core in range(self.num_cores):
+                        # we need to move quantization outside of layer.
+                        c1 = core * cut_c
+                        c2 = (core + 1) * cut_c
+                        y_sum += self.cores[core].forward(layer=layer, x=y[example][:, :, c1:c2])
+
+                    y[example] = y_sum
 
         return y
         
