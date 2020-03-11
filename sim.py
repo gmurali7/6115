@@ -7,6 +7,7 @@ import tensorflow as tf
 import threading
 
 from layers import *
+from core import *
 
 ####
 
@@ -25,19 +26,21 @@ def init_x(num_example, input_shape, xlow, xhigh):
 
 ####
 
-layers = [
+layers = [[None for layer in range(3)] for core in range(16)] 
+for core in range(16):
+    layers
+    
 Conv(input_size=(5,5,3),  filter_size=(3,3,3,32),  stride=1, pad1=1, pad2=1),
 Conv(input_size=(5,5,32), filter_size=(3,3,32,32), stride=1, pad1=1, pad2=1),
 Conv(input_size=(5,5,32), filter_size=(3,3,32,64), stride=1, pad1=1, pad2=1),
 Conv(input_size=(5,5,64), filter_size=(3,3,64,64), stride=1, pad1=1, pad2=1),
-]
 
 model = Model(layers=layers)
 
 ####
 
 tests = [
-(1, (5, 5), model)
+(1, (32, 32), model)
 ]
 
 ####
