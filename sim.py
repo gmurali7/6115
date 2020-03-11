@@ -28,49 +28,15 @@ def init_x(num_example, input_shape, xlow, xhigh):
 weights = np.load('cifar10_weights.npy', allow_pickle=True).item()
 
 layers = [
-Conv(input_size=(5,5,3),  filter_size=(3,3,3,32),  stride=1, pad1=1, pad2=1),
-Conv(input_size=(5,5,32), filter_size=(3,3,32,32), stride=1, pad1=1, pad2=1),
-Conv(input_size=(5,5,32), filter_size=(3,3,32,64), stride=1, pad1=1, pad2=1),
-Conv(input_size=(5,5,64), filter_size=(3,3,64,64), stride=1, pad1=1, pad2=1),
+Conv(input_size=(32,32,3),  filter_size=(3,3,3,32),  stride=1, pad1=1, pad2=1),
+Conv(input_size=(32,32,32), filter_size=(3,3,32,32), stride=2, pad1=1, pad2=1),
+
+Conv(input_size=(16,16,32), filter_size=(3,3,32,64), stride=1, pad1=1, pad2=1),
+Conv(input_size=(16,16,64), filter_size=(3,3,64,64), stride=2, pad1=1, pad2=1),
 ]
 
 model = Model(layers=layers)
 network = model.cut(num_cores=4)
-
-####
-
-# just use random weights for now.
-# weights = np.load('../cifar10_weights.npy', allow_pickle=True).item()
-
-'''
-input_shapes=[
-(32,32, 3),
-(32,32,32),
-(16,16,64),
-(32,64,64),
-]
-
-layer_shapes=[
-(3,3, 3,32),
-(3,3,32,32),
-(3,3,32,64),
-(3,3,64,64),
-]
-
-num_cores = 4
-num_layers = 4
-
-cores = [None] * num_cores
-for core in range(4):
-    layers = [None] * num_layers
-
-    for layer in range(4):
-        layers[layer] = Conv(input_size=(32,32,8),  filter_size=(3,3,8,32),  stride=1, pad1=1, pad2=1)
-
-    cores[core] = Core(layers=layers)
-
-network = Network(cores=cores, num_layers=num_layers)
-'''
 
 ####
 
