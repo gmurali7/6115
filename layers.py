@@ -1,9 +1,27 @@
 
 import math
 import numpy as np
-from conv_utils import conv_output_length
+np.set_printoptions(threshold=1000)
+
 from dot import *
-from defines import *
+
+##############################################
+
+class Model:
+    def __init__(self, layers):
+        self.layers = layers
+
+    def forward(self, x):
+        num_examples, _, _, _ = np.shape(x)
+        num_layers = len(self.layers)
+        
+        y = [None] * num_examples
+        for example in range(num_examples):
+            y[example] = x[example]
+            for layer in range(num_layers):
+                y[example] = self.layers[layer].forward(x=y[example])
+
+        return y
 
 ##############################################
 
@@ -41,7 +59,7 @@ class Conv(Layer):
         if (self.fh == 1): 
             assert((self.s==1) and (self.p1==0) and (self.p2==0))
 
-        maxval = pow(2, params['bpw'] - 1)
+        maxval = 2 ** (8 - 1)
         minval = -1 * maxval
         if weights == None:
             values = np.array(range(minval + 1, maxval))
@@ -74,7 +92,7 @@ class Dense(Layer):
         self.size = size
         self.isize, self.osize = self.size
 
-        maxval = pow(2, params['bpw'] - 1)
+        maxval = 2 ** (8 - 1)
         minval = -1 * maxval
         if weights == None:
             values = np.array(range(minval + 1, maxval))

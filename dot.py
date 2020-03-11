@@ -18,7 +18,7 @@ def conv(x, f, b, q, stride, pad1, pad2):
         for w in range(Wo):
             patch = np.reshape(x[h*stride:(h*stride+Fh), w*stride:(w*stride+Fw), :], -1)
             assert(np.prod(np.shape(patch)) == np.shape(f_matrix)[0])
-            y[h, w, :] = dot_ref(patch, f_matrix, b, q)
+            y[h, w, :] = dot(patch, f_matrix, b, q)
 
     return y
 
