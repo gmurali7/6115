@@ -7,7 +7,6 @@ import tensorflow as tf
 import threading
 
 from layers import *
-from core import *
 
 ####
 
