@@ -124,7 +124,7 @@ def pim_kernel(x, w, b, params):
                 wl_sum[ii]    = (x[ii] & (wl_ptr <= ii)) + wl_sum[ii - 1]
                 wl_stride[ii] = (wl_sum[ii] <= row) + wl_stride[ii - 1]
             else:
-                # assert (params['rpr'][b] == params['adc'])
+                assert (params['rpr'][b] == params['adc'])
                 wl[ii]        = (x[ii] & (wl_ptr <= ii)) & (ii < (wl_ptr + params['adc']))
                 wl_stride[ii] = wl_ptr + params['adc']
 
