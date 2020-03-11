@@ -42,8 +42,18 @@ class Model:
 
     def cut(self, num_cores):
         num_layers = len(self.layers)
+        layers = [[None for layer in range(num_layers)] for core in range(num_cores)]
+
         for layer in range(num_layers):
             cuts = self.layers[layer].cut(num_cores=num_cores)
+            for core in range(num_cores):
+                layers[core][layer] = cuts[core]
+
+        cores = [None] * num_cores
+        for core in range(num_cores):
+            cores[core] = Core(layers=layers[core])
+
+        return Network(cores=cores, num_layers=num_layers)
 
 ##############################################
 
@@ -119,6 +129,8 @@ class Conv(Layer):
                 assert ((self.c % num_cores) == 0)
                 cut_c = self.c // num_cores
                 cores[core] = Conv(input_size=(self.h, self.w, cut_c), filter_size=(self.fh, self.fw, cut_c, self.fn), stride=self.s, pad1=self.p1, pad2=self.p2)
+
+        return cores
 
 ##############################################
 

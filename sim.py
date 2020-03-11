@@ -35,7 +35,7 @@ Conv(input_size=(5,5,64), filter_size=(3,3,64,64), stride=1, pad1=1, pad2=1),
 ]
 
 model = Model(layers=layers)
-cuts = model.cut(num_cores=4)
+network = model.cut(num_cores=4)
 
 ####
 
