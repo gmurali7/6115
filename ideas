@@ -1,0 +1,21 @@
+
+> picturing a bunch of RRAM
+  > send packets of lsb[128] around.
+    > have them forwarded elsewhere.
+    > how do we partition weights/activations given PIM
+
+> okay lets come up with some ideas.
+> what is different about pim
+
+> bitwise
+> weight stationary
+> partial sums will be similar right ? 
+  > only if u copy weights multiple times.
+  
+-----
+
+can we lower link frequency because pim requires less bandwidth
+run PIM units and interconnects at different frequency
+what do we get for this ? 
+
+
