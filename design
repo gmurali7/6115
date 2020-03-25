@@ -143,8 +143,11 @@ yeah ...
 
 ----
 
+alright so we have a gather implementation.
+i suppose we want to implement the pim operations now.
+basically sending bits instead of 8 bit numbers.
 
-
+----
 
 
 
