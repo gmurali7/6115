@@ -37,7 +37,7 @@ def dot(x, w, b, q, params):
     y = y // q 
     y = np.clip(y, 0, 127)
     return y, psum
-            
+
 ##################################################
 
 def pim_dot(x, w, params):
@@ -119,6 +119,63 @@ def pim_kernel(x, w, b, params):
 
 ##################################################
 
+def bin_conv_kernel(patch, pcm, bit_per_val, bit_per_weight):
+    y = 0
+    offset = 0
 
+    for xb in range(bit_per_val):
+        patch_xb = np.bitwise_and(np.right_shift(patch.astype(int), xb), 1)
+        offset = offset + (np.sum(patch_xb) << (xb + 3))
 
+        for wb in range(bit_per_weight):
+            pcm_wb = np.bitwise_and(np.right_shift(pcm.astype(int), wb), 1)
 
+            # there will be big issues here.
+            # if all 16 rows are 1, then our adc is wrong.
+            # this dosnt seem to happen often
+            # in sim, we quantize 16 -> 15 ... in emu we do not.
+            
+            # in order to do this in emu, we have to loop over the 16 rows at a time and quantize them
+            
+            dot = patch_xb @ pcm_wb
+            y = y + np.left_shift(dot.astype(int), xb + wb)
+
+    # its great to do offset at the end, but can easily get an overflow here.
+    assert(np.all(y < 2 ** 15))
+    y = y - offset
+    y = y * (y > 0)
+    y = y.astype(int)
+    # y = np.bitwise_and(y, 15)
+
+    return y
+    
+###########################################
+
+def dot(patch, pcm, bit_per_val, bit_per_weight):
+    y = 0
+    offset = 0
+
+    for xb in range(bit_per_val):
+        patch_xb = np.bitwise_and(np.right_shift(patch.astype(int), xb), 1)
+        offset = offset + (np.sum(patch_xb) << (xb + 3))
+
+        for wb in range(bit_per_weight):
+            pcm_wb = np.bitwise_and(np.right_shift(pcm.astype(int), wb), 1)
+
+            # there will be big issues here.
+            # if all 16 rows are 1, then our adc is wrong.
+            # this dosnt seem to happen often
+            # in sim, we quantize 16 -> 15 ... in emu we do not.
+            dot = patch_xb @ pcm_wb
+            y = y + np.left_shift(dot.astype(int), xb + wb)
+
+    # its great to do offset at the end, but can easily get an overflow here.
+    assert(np.all(y < 2 ** 15))
+    y = y - offset
+    y = y * (y > 0)
+    y = y.astype(int)
+    # y = np.bitwise_and(y, 15)
+
+    return y
+
+###########################################
