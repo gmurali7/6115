@@ -47,7 +47,7 @@ Conv(input_size=(32,32,3),  filter_size=(3,3,3,64),  stride=1, pad1=1, pad2=1, w
 ]
 
 model = Model(layers=layers)
-network = model.cut(num_cores=16)
+network = model.cut(num_tiles=16)
 
 ####
 

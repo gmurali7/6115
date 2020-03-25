@@ -149,6 +149,31 @@ basically sending bits instead of 8 bit numbers.
 
 ----
 
+pim operation is sorta done
+i think the next step is figuring out the tile thing
+because that is what has to do the (b, q, relu)
+
+yeah so i guess all tiles handle that shit. 
+
+array
+tile
+core 
+
+he has the pool/activation at the core level.
+
+----
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

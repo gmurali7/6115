@@ -9,9 +9,9 @@ from pim import *
 ##############################################
 
 class Network:
-    def __init__(self, cores, num_layers):
-        self.cores = cores
-        self.num_cores = len(cores)
+    def __init__(self, tiles, num_layers):
+        self.tiles = tiles
+        self.num_tiles = len(tiles)
         self.num_layers = num_layers
 
     def forward(self, x):
@@ -27,16 +27,16 @@ class Network:
                 ################################
                 
                 if c <= 3:
-                    y[example] = self.cores[0].forward(layer=layer, x=y[example])
+                    y[example] = self.tiles[0].forward(layer=layer, x=y[example])
                 else:
-                    assert ((c % self.num_cores) == 0)
-                    cut_c = c // self.num_cores
+                    assert ((c % self.num_tiles) == 0)
+                    cut_c = c // self.num_tiles
 
-                    for core in range(self.num_cores):
+                    for tile in range(self.num_tiles):
                         # we need to move quantization outside of layer.
-                        c1 = core * cut_c
-                        c2 = (core + 1) * cut_c
-                        self.cores[core].forward(layer=layer, x=y[example][:, :, c1:c2])
+                        c1 = tile * cut_c
+                        c2 = (tile + 1) * cut_c
+                        self.tiles[tile].forward(layer=layer, x=y[example][:, :, c1:c2])
 
                     y[example] = self.reduce()
                 
@@ -53,22 +53,22 @@ class Network:
                 
 
     def reduce(self):
-        reduce_steps = np.log2(self.num_cores)
+        reduce_steps = np.log2(self.num_tiles)
         assert ((reduce_steps % 1) <= 0)
         reduce_steps = int(reduce_steps)
         
         for step in range(1, reduce_steps + 1):
             group = 2 ** step
-            for core in range(0, self.num_cores, group):
-                accum_core = core
-                reduce_core = core + group // 2
-                self.cores[accum_core].accum(self.cores[reduce_core].reduce())
+            for tile in range(0, self.num_tiles, group):
+                accum_tile = tile
+                reduce_tile = tile + group // 2
+                self.tiles[accum_tile].accum(self.tiles[reduce_tile].reduce())
                 
-        return self.cores[0].reduce()
+        return self.tiles[0].reduce()
         
 ##############################################
 
-class Core:
+class Tile:
     def __init__(self, layers):
         self.layers = layers
         self.rec_count = 0
@@ -107,20 +107,20 @@ class Model:
 
         return y
 
-    def cut(self, num_cores):
+    def cut(self, num_tiles):
         num_layers = len(self.layers)
-        layers = [[None for layer in range(num_layers)] for core in range(num_cores)]
+        layers = [[None for layer in range(num_layers)] for tile in range(num_tiles)]
 
         for layer in range(num_layers):
-            cuts = self.layers[layer].cut(num_cores=num_cores)
-            for core in range(num_cores):
-                layers[core][layer] = cuts[core]
+            cuts = self.layers[layer].cut(num_tiles=num_tiles)
+            for tile in range(num_tiles):
+                layers[tile][layer] = cuts[tile]
 
-        cores = [None] * num_cores
-        for core in range(num_cores):
-            cores[core] = Core(layers=layers[core])
+        tiles = [None] * num_tiles
+        for tile in range(num_tiles):
+            tiles[tile] = Tile(layers=layers[tile])
 
-        return Network(cores=cores, num_layers=num_layers)
+        return Network(tiles=tiles, num_layers=num_layers)
 
 ##############################################
 
@@ -137,7 +137,7 @@ class Layer:
     def rpr(self):
         assert(False)
 
-    def cut(self, num_cores):
+    def cut(self, num_tiles):
         assert (False)
         
 ##############################################
@@ -199,20 +199,20 @@ class Conv(Layer):
         y = conv(x=x, f=self.w, b=self.b, q=self.q, stride=self.s, pad1=self.p1, pad2=self.p2)
         return y
 
-    def cut(self, num_cores):
-        cores = [None] * num_cores
-        for core in range(num_cores):
+    def cut(self, num_tiles):
+        tiles = [None] * num_tiles
+        for tile in range(num_tiles):
             if self.c <= 3:
-                cores[0] = self
+                tiles[0] = self
             else:
-                assert ((self.c % num_cores) == 0)
-                cut_c = self.c // num_cores
-                start = core * cut_c
+                assert ((self.c % num_tiles) == 0)
+                cut_c = self.c // num_tiles
+                start = tile * cut_c
                 end = start + cut_c
                 cut_weights = self.weights[:, :, start:end, :]
-                cores[core] = Conv(input_size=(self.h, self.w, cut_c), filter_size=(self.fh, self.fw, cut_c, self.fn), stride=self.s, pad1=self.p1, pad2=self.p2, weights=cut_weights, params=self.params)
+                tiles[tile] = Conv(input_size=(self.h, self.w, cut_c), filter_size=(self.fh, self.fw, cut_c, self.fn), stride=self.s, pad1=self.p1, pad2=self.p2, weights=cut_weights, params=self.params)
 
-        return cores
+        return tiles
 
 ##############################################
         
