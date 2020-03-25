@@ -17,3 +17,87 @@
 we still have to do pim convolution
 > we are still doing regular convolution not bit-by-bit pim convolution
 > should have both options to compare throughput.
+
+----
+
+okay so we only need to move the activations around
+and we need to send them in packets
+we cud start with just sending the weights ? 
+but i mean we need to consider the size of the bus right ? 
+... yeah we care about flits really
+we can assume everything is 8 bit words ... nope accumulated convs probably 16. 
+
+can we ignore packets to start ? 
+just count the number of things we send ? 
+the scatter and gather right now is whack lol.
+
+so at the core level we just have "rec, send" 
+but we dont really consider injection points
+or sim as if it is a mesh
+where would injection points even be ?
+
+wudnt injection points just be SRAM ? 
+that wud be interleaved between the cores ? 
+yeah 
+alright so that will get a bit tricky then. 
+
+----
+
+so we need to create a mesh with SRAM and PIM cores.
+128x128 cores I guess ? can we find SRAM blocks of similar size and make it all work ?
+yeah but they will probably need to be double the size or something.
+thats fine.
+
+so main memory feeds into sram
+sram feeds pim cores
+pim cores back to sram
+sram back to main memory
+yeah other thing would just be sticking SRAM in the PIM cores.
+which we should probably do instead.
+
+alright so they we have to use local reuse and shit. 
+so i guess bottom line will be
+how to do MAERI for PIM.
+
+so where does main memory come from ?
+well if we have a package, then data can go to all of them, right ? 
+yeah ... not sure about that
+is that the big question tho ? 
+
+----
+
+FLIP CHIP VS WIRE BONDING.
+
+MM -> PIM.SRAM -> PIM.PIM -> PIM.SRAM -> MM
+> how does it get to PIM.SRAM ? 
+> package have pins to all cores ? 
+
+lets assume we can communicate with all cores. 
+> then we need to come up with a gather, scatter, reduce technique.
+
+still need to come up with a mapping stratedgy to go from feature map -> core
+> like some dictionary or 2d list or something
+
+----
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
