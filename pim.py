@@ -26,11 +26,13 @@ def pim_conv(x, f, b, q, stride, pad1, pad2, params):
 def pim_dot(x, w, b, q, params):
     y = pim_dot_kernel(x, w, params)
     assert(np.all(np.absolute(y) < 2 ** 23))
+    '''
     y = y + b
     y = y * (y > 0)
     y = y.astype(int)
     y = y // q 
     y = np.clip(y, 0, 127)
+    '''
     return y
 
 ##################################################

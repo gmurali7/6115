@@ -21,7 +21,11 @@ class Network:
         for example in range(num_examples):
             y[example] = x[example]
             for layer in range(self.num_layers):
+
                 h, w, c = np.shape(y[example])
+                
+                ################################
+                
                 if c <= 3:
                     y[example] = self.cores[0].forward(layer=layer, x=y[example])
                 else:
@@ -35,6 +39,15 @@ class Network:
                         self.cores[core].forward(layer=layer, x=y[example][:, :, c1:c2])
 
                     y[example] = self.reduce()
+                
+                ################################
+                '''
+                y[example] += b
+                y[example] *= (y[example] > 0)
+                y[example] = y[example] // q 
+                y[example] = np.clip(y[example], 0, 127)
+                y[example] = y[example].astype(int)
+                '''
 
     def reduce(self):
         reduce_steps = np.log2(self.num_cores)
@@ -191,7 +204,10 @@ class Conv(Layer):
             else:
                 assert ((self.c % num_cores) == 0)
                 cut_c = self.c // num_cores
-                cores[core] = Conv(input_size=(self.h, self.w, cut_c), filter_size=(self.fh, self.fw, cut_c, self.fn), stride=self.s, pad1=self.p1, pad2=self.p2, weights=None, params=self.params)
+                start = core * cut_c
+                end = start + cut_c
+                cut_weights = self.weights[:, :, start:end, :]
+                cores[core] = Conv(input_size=(self.h, self.w, cut_c), filter_size=(self.fh, self.fw, cut_c, self.fn), stride=self.s, pad1=self.p1, pad2=self.p2, weights=cut_weights, params=self.params)
 
         return cores
 
