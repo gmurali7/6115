@@ -40,7 +40,7 @@ weights = np.load('cifar10_weights.npy', allow_pickle=True).item()
 
 layers = [
 Conv(input_size=(32,32,3),  filter_size=(3,3,3,64),  stride=1, pad1=1, pad2=1, weights=None, params=params),
-Conv(input_size=(32,32,64), filter_size=(3,3,64,64), stride=2, pad1=1, pad2=1, weights=None, params=params),
+#Conv(input_size=(32,32,64), filter_size=(3,3,64,64), stride=2, pad1=1, pad2=1, weights=None, params=params),
 
 #Conv(input_size=(16,16,64), filter_size=(3,3,64,128), stride=1, pad1=1, pad2=1),
 #Conv(input_size=(16,16,128), filter_size=(3,3,128,128), stride=2, pad1=1, pad2=1),
@@ -62,6 +62,8 @@ for test in tests:
     x = init_x(num_example, input_shape, 0, 127)
     assert (np.min(x) >= 0 and np.max(x) <= 127)
     y = network.forward(x=x)
+    y_ref = model.forward(x=x)
+    assert (np.all(y == y_ref))
     
 ####
 

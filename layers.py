@@ -78,6 +78,18 @@ class Core:
 class Model:
     def __init__(self, layers):
         self.layers = layers
+        
+    def forward(self, x):
+        num_examples, _, _, _ = np.shape(x)
+        num_layers = len(self.layers)
+        
+        y = [None] * num_examples
+        for example in range(num_examples):
+            y[example] = x[example]
+            for layer in range(num_layers):
+                y[example] = self.layers[layer].forward_ref(x=y[example])
+
+        return y
 
     def cut(self, num_cores):
         num_layers = len(self.layers)
@@ -101,6 +113,9 @@ class Layer:
         assert(False)
         
     def forward(self, x):   
+        assert(False)
+        
+    def forward_ref(self, x):   
         assert(False)
 
     def rpr(self):
@@ -161,8 +176,11 @@ class Conv(Layer):
         self.wb = np.stack(wb, axis=-1)
 
     def forward(self, x):
-        # y = conv(x=x, f=self.w, b=self.b, q=self.q, stride=self.s, pad1=self.p1, pad2=self.p2)
         y = pim_conv(x=x, f=self.w, b=self.b, q=self.q, stride=self.s, pad1=self.p1, pad2=self.p2, params=self.params)
+        return y
+        
+    def forward_ref(self, x):
+        y = conv(x=x, f=self.w, b=self.b, q=self.q, stride=self.s, pad1=self.p1, pad2=self.p2)
         return y
 
     def cut(self, num_cores):
