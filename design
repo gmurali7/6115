@@ -80,8 +80,68 @@ still need to come up with a mapping stratedgy to go from feature map -> core
 
 ----
 
+> we communicate with 2x2 core blocks.
+> so we can probably share SRAM in this range to a single large bank.
+nah dont share SRAM there actually. 
+maybe just do (L1, L2) caches ? 
 
+so we have maps from network to block
+then from block to core ? 
+maybe something like that.
 
+----
+
+okay, so finishing these ideas up,
+how do we implement ? 
+we want to send different data to each core.
+then gather them all together i think.
+
+scatter:
+so the scatter will be sending to each block
+then the block will distribute to each core
+
+gather:
+each core to each block
+each block does a tree.
+
+we start by just implementing 
+the split
+then reducing it ? 
+
+yeah its tough we really just need to do one part at a time .
+not sure where to start.
+
+----
+
+so its:
+map mm -> block
+map block -> core
+then perform all reduce.
+
+> so i think there is an easier way to do this mapping
+divide the data up into chunks
+
+> transpose + reshape->(16, ...)
+  then send each block its chunk ...
+
+this will work for now I think, 
+> but might cause problems in future when we consider that we cant send all the data at once.
+> OR we want to send it by XY coords not channel coords.
+
+i think for now we leave scatter as is ...
+
+----
+
+lets do gather.
+so we basically call reduce.
+can we do this object oriented for each core with pointers ? 
+> we cud by having each core call its neighbors based on id.
+> each core knows what part of all reduce it is.
+
+yeah but wont every node have to return something ? 
+yeah ...
+
+----
 
 
 

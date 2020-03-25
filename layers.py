@@ -27,25 +27,50 @@ class Network:
                     assert ((c % self.num_cores) == 0)
                     cut_c = c // self.num_cores
 
-                    y_sum = 0
                     for core in range(self.num_cores):
                         # we need to move quantization outside of layer.
                         c1 = core * cut_c
                         c2 = (core + 1) * cut_c
-                        y_sum += self.cores[core].forward(layer=layer, x=y[example][:, :, c1:c2])
+                        self.cores[core].forward(layer=layer, x=y[example][:, :, c1:c2])
 
-                    y[example] = y_sum
+                    y[example] = self.reduce()
 
-        return y
+    def reduce(self):
+        reduce_steps = np.log2(self.num_cores)
+        assert ((reduce_steps % 1) <= 0)
+        reduce_steps = int(reduce_steps)
+        
+        for step in range(1, reduce_steps + 1):
+            group = 2 ** step
+            for core in range(0, self.num_cores, group):
+                accum_core = core
+                reduce_core = core + group // 2
+                self.cores[accum_core].accum(self.cores[reduce_core].reduce())
+                
+        return self.cores[0].reduce()
         
 ##############################################
 
 class Core:
     def __init__(self, layers):
         self.layers = layers
+        self.rec_count = 0
+        self.send_count = 0
+        self.y = 0
 
     def forward(self, layer, x):
-        return self.layers[layer].forward(x)
+        self.rec_count += np.prod(np.shape(x))
+        self.y = self.layers[layer].forward(x)
+        return self.y
+                
+    def reduce(self):
+        self.send_count += np.prod(np.shape(self.y))
+        return self.y
+        
+    def accum(self, x):
+        self.rec_count += np.prod(np.shape(x))
+        self.y += x
+        return self.y
 
 ##############################################
 

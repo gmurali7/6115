@@ -28,15 +28,15 @@ def init_x(num_example, input_shape, xlow, xhigh):
 weights = np.load('cifar10_weights.npy', allow_pickle=True).item()
 
 layers = [
-Conv(input_size=(32,32,3),  filter_size=(3,3,3,32),  stride=1, pad1=1, pad2=1),
-Conv(input_size=(32,32,32), filter_size=(3,3,32,32), stride=2, pad1=1, pad2=1),
+Conv(input_size=(32,32,3),  filter_size=(3,3,3,64),  stride=1, pad1=1, pad2=1),
+Conv(input_size=(32,32,64), filter_size=(3,3,64,64), stride=2, pad1=1, pad2=1),
 
-Conv(input_size=(16,16,32), filter_size=(3,3,32,64), stride=1, pad1=1, pad2=1),
-Conv(input_size=(16,16,64), filter_size=(3,3,64,64), stride=2, pad1=1, pad2=1),
+#Conv(input_size=(16,16,64), filter_size=(3,3,64,128), stride=1, pad1=1, pad2=1),
+#Conv(input_size=(16,16,128), filter_size=(3,3,128,128), stride=2, pad1=1, pad2=1),
 ]
 
 model = Model(layers=layers)
-network = model.cut(num_cores=4)
+network = model.cut(num_cores=16)
 
 ####
 
