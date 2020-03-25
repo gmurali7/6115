@@ -63,7 +63,8 @@ for test in tests:
     assert (np.min(x) >= 0 and np.max(x) <= 127)
     y = network.forward(x=x)
     y_ref = model.forward(x=x)
-    assert (np.all(y == y_ref))
+    print (np.shape(y), np.shape(y_ref))
+    assert (np.all(y[0] == y_ref[0]))
     
 ####
 

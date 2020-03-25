@@ -11,7 +11,7 @@ def pim_conv(x, f, b, q, stride, pad1, pad2, params):
     Wo = conv_output_length(Hi, Fw, 'same', stride)
 
     x = np.pad(array=x, pad_width=[[pad1,pad2], [pad1,pad2], [0,0]], mode='constant')
-    f_matrix = np.reshape(f, (Fh * Fw * Ci, Co))
+    f_matrix = np.reshape(f, (Fh * Fw * Ci, Co)) + params['offset']
     y = np.zeros(shape=(Ho, Wo, Co))
 
     for h in range(Ho):        

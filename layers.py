@@ -49,6 +49,9 @@ class Network:
                 y[example] = y[example].astype(int)
                 '''
 
+        return y
+                
+
     def reduce(self):
         reduce_steps = np.log2(self.num_cores)
         assert ((reduce_steps % 1) <= 0)
