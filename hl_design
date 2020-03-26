@@ -17,3 +17,5 @@ weight partitioning
 array level design questions:
 1) A) start with N arrays B) create a kernel and then figure out duplication 
 2) A) init an array with list of weights B) or program them in.
+
+> ONLY BIN (PE) THINGS TOGETHER THAN SHARE THE SAME X DATA

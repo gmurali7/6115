@@ -449,9 +449,17 @@ can we use splitting in XY dimension, to prevent weird shapes ?
   > actually seems to be no reason to me to split XY direction.
   > just fill it all the way up.
 
+----
 
+okay so now we have done a good job splitting things up BUT we have a problem.
+network cannot do a conv.
+so, i dont think we have a network in the first place.
+well i take that back actually.
 
-
+the issue with splitting up the way u describe, is then u cant mix layers.
+so im thinking there are two ways to go:
+> collect all arrays in model, then pass them back.
+> or bundle all params into a dictionary and return them from conv.
 
 
 

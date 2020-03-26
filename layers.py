@@ -96,11 +96,13 @@ class Array:
     def __init__(self, weights, params):
         self.weights = weights
         self.params = params
+        self.shift = 2 ** np.array(range(self.params['bpw']))
 
     def dot(self, partition, x):
         # self.rec_count += np.prod(np.shape(x))
-        self.y = self.weights[partition] @ x
-        return self.y
+        y = self.weights[:, 0:len(x)] @ x
+        y = np.reshape(y, (-1, self.params['bpw'])) @ self.shift
+        return y
 
     '''
     def reduce(self):
@@ -130,6 +132,18 @@ class Model:
                 y[example] = self.layers[layer].forward(x=y[example])
 
         return y
+        
+    def forward_dist(self, x):
+        num_examples, _, _, _ = np.shape(x)
+        num_layers = len(self.layers)
+        
+        y = [None] * num_examples
+        for example in range(num_examples):
+            y[example] = x[example]
+            for layer in range(num_layers):
+                y[example] = self.layers[layer].forward_dist(x=y[example])
+
+        return y
 
     def cut(self, params):
         num_layers = len(self.layers)
@@ -139,13 +153,17 @@ class Model:
         for layer in range(num_layers):
             weights = self.layers[layer].cut(params=params)
             nwl, _, nbl, _ = np.shape(weights)
-            array_map = np.zeros(shape=(nwl, nbl, 2)) 
+            array_map = np.zeros(shape=(nwl, nbl, 2), dtype=np.int32) 
             for wl in range(nwl):
                 for bl in range(nbl):
-                    arrays.append(Array(weights=weights[:, bl, :, wl], params=params))
-                    array_map[wl][bl] = np.array([len(arrays), 0])
+                    arrays.append(Array(weights=weights[wl, :, bl, :], params=params))
+                    array_map[wl][bl] = np.array([len(arrays) - 1, 0])
 
             array_maps.append(array_map)
+            
+        for layer in range(num_layers):
+            self.layers[layer].set_arrays(arrays)
+            self.layers[layer].set_array_maps(array_maps[layer])
             
         return arrays, array_maps
                     
@@ -184,7 +202,7 @@ class Conv(Layer):
         
         self.y_h = (self.h - self.fh + self.s + self.p1 + self.p2) / self.s
         self.y_w = (self.w - self.fw + self.s + self.p1 + self.p2) / self.s
-                
+
         maxval = 2 ** (8 - 1)
         minval = -1 * maxval
         if weights is not None:
@@ -207,11 +225,47 @@ class Conv(Layer):
             self.b = np.zeros(shape=self.fn).astype(int)
             self.q = 200
         
-        ##############################
+    ##############################
+        
+    def set_arrays(self, arrays):
+        self.arrays = arrays
+
+    def set_array_maps(self, array_maps):
+        self.array_maps = array_maps
+
+    ##############################
 
     def forward(self, x):
         y = conv(x=x, f=self.w, b=self.b, q=self.q, stride=self.s, pad1=self.p1, pad2=self.p2)
         return y
+
+    def forward_dist(self, x):
+        Ho = conv_output_length(self.h, self.fh, 'same', self.s)
+        Wo = Ho
+        Co = self.fn
+
+        x = np.pad(array=x, pad_width=[[self.p1,self.p2], [self.p1,self.p2], [0,0]], mode='constant')
+        y = np.zeros(shape=(Ho, Wo, Co))
+
+        for h in range(Ho):        
+            for w in range(Wo):
+                patch = np.reshape(x[h*self.s:(h*self.s+self.fh), w*self.s:(w*self.s+self.fw), :], -1)
+                
+                ah, aw, _ = np.shape(self.array_maps)
+                for i in range(ah):
+                    for j in range(aw):
+                        x1 = i * 128
+                        x2 = min(x1 + 128, len(patch))
+                        
+                        y1 = j * 16
+                        y2 = y1 + 16
+                                                
+                        array, partition = self.array_maps[i][j]
+                        y[h, w, y1:y2] = self.arrays[array].dot(partition, patch[x1:x2])
+                        
+        return y
+
+    ##############################
 
     def cut(self, params):
         
@@ -241,8 +295,7 @@ class Conv(Layer):
         ########################
 
         nwl, wl, ncol, nbit = np.shape(wb)
-        wb = np.transpose(wb, (0, 1, 3, 2))
-        wb = np.reshape(wb, (nwl, params['rpa'], nbit * ncol))
+        wb = np.reshape(wb, (nwl, params['rpa'], ncol * nbit))
         
         nwl, wl, ncol = np.shape(wb)
         if (ncol % params['bl']):
@@ -254,6 +307,8 @@ class Conv(Layer):
         ########################
 
         return wb
+        
+        
 
 ##############################################
         
