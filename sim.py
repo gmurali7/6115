@@ -32,6 +32,7 @@ params = {
 'wl': 128,
 'bl': 128,
 'offset': 128,
+'rpa': 128
 }
 
 weights = np.load('cifar10_weights.npy', allow_pickle=True).item()

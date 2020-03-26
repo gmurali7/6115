@@ -89,7 +89,7 @@ class Tile:
         return self.y
 
 ##############################################
-'''
+
 class PE:
     def __init__(self, weights):
         self.layers = layers
@@ -110,7 +110,7 @@ class PE:
         self.rec_count += np.prod(np.shape(x))
         self.y += x
         return self.y
-'''
+
 ##############################################
 
 class Model:
@@ -134,15 +134,9 @@ class Model:
         layers = [[None for layer in range(num_layers)] for tile in range(num_tiles)]
 
         for layer in range(num_layers):
-            cuts = self.layers[layer].cut(num_tiles=num_tiles)
-            for tile in range(num_tiles):
-                layers[tile][layer] = cuts[tile]
-
-        tiles = [None] * num_tiles
-        for tile in range(num_tiles):
-            tiles[tile] = Tile(layers=layers[tile])
-
-        return Network(tiles=tiles, num_layers=num_layers)
+            cuts = self.layers[layer].cut()
+            
+        assert (False)
 
 ##############################################
 
@@ -206,12 +200,8 @@ class Conv(Layer):
             self.w = np.random.choice(a=values, size=self.filter_size, replace=True).astype(int)
             self.b = np.zeros(shape=self.fn).astype(int)
             self.q = 200
-            
-        w_offset = self.w + params['offset']
-        wb = []
-        for bit in range(params['bpw']):
-            wb.append(np.bitwise_and(np.right_shift(w_offset, bit), 1))
-        self.wb = np.stack(wb, axis=-1)
+        
+        ##############################
 
     def forward(self, x):
         y = pim_conv(x=x, f=self.w, b=self.b, q=self.q, stride=self.s, pad1=self.p1, pad2=self.p2, params=self.params)
@@ -221,28 +211,49 @@ class Conv(Layer):
         y = conv(x=x, f=self.w, b=self.b, q=self.q, stride=self.s, pad1=self.p1, pad2=self.p2)
         return y
 
-    def cut(self, num_tiles):
-        tiles = [None] * num_tiles
-        for tile in range(num_tiles):
-            if self.c <= 3:
-                tiles[0] = self
-            else:
-                assert ((self.c % num_tiles) == 0)
-                cut_c = self.c // num_tiles
-                
-                start = tile * cut_c
-                end = start + cut_c
-                cut_weights = self.w[:, :, start:end, :]
-                
-                tiles[tile] = Conv(input_size=(self.h, self.w, cut_c), 
-                                   filter_size=(self.fh, self.fw, cut_c, self.fn), 
-                                   stride=self.s, 
-                                   pad1=self.p1, 
-                                   pad2=self.p2, 
-                                   weights=(cut_weights, self.b, self.q),
-                                   params=self.params)
+    def cut(self):
+        
+        # nrow, nwl, wl, xb = np.shape(x)
+        # nwl, wl, nbl, bl = np.shape(w) 
+        # nrow, ncol = y_shape
 
-        return tiles
+        ########################
+
+        arrays = []
+        
+        ########################
+        
+        w_offset = self.w + self.params['offset']
+        w_matrix = np.reshape(w_offset, (self.fh * self.fw * self.fc, self.fn))
+        wb = []
+        for bit in range(self.params['bpw']):
+            wb.append(np.bitwise_and(np.right_shift(w_matrix, bit), 1))
+        wb = np.stack(wb, axis=-1)
+        
+        ########################
+        
+        nrow, ncol, nbit = np.shape(wb)
+        if (nrow % self.params['wl']):
+            zeros = np.zeros(shape=(self.params['wl'] - (nrow % self.params['wl']), ncol, nbit))
+            wb = np.concatenate((wb, zeros), axis=0)
+
+        nrow, ncol, nbit = np.shape(wb)
+        wb = np.reshape(wb, (-1, self.params['wl'], ncol, nbit))
+
+        nwl, wl, ncol, nbit = np.shape(wb)
+        wb = np.transpose(wb, (0, 1, 3, 2))
+        wb = np.reshape(wb, (nwl, self.params['wl'], nbit * ncol))
+        
+        nwl, wl, ncol = np.shape(wb)
+        if (ncol % self.params['bl']):
+            zeros = np.zeros(shape=(nwl, self.params['wl'], self.params['bl'] - (ncol % self.params['bl'])))
+            wb = np.concatenate((wb, zeros), axis=2)
+
+        wb = np.reshape(wb, (nwl, self.params['wl'], -1, self.params['bl']))
+
+        print (np.shape(wb))
+
+        return arrays
 
 ##############################################
         
