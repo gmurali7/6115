@@ -205,6 +205,60 @@ and figure out the architecture first.
 
 actually dont need PIM to do this .
 
+----
+
+yeah okay the new structure is the challenge here.
+when u cut the conv, what happens ? 
+> u get PE/TILE
+> then u pass it back to Model which does more hacky shit
+
+okay so its clear
+need to fix this garbage structure. 
+i like the idea of doing it the same way we do it in the RTL
+  where the weights are in the crossbar
+  and we have instructions that handle shit.
+  
+hard to visualize this now.
+> stop thinking about current structure and think about the correct one.
+
+have 6 conv layers
+need to spread them over the arrays
+BUT this means we need the distributed convolution function. 
+
+what we do right now:
+> split each conv 16 ways
+> put 1/16 of all 6 layers into a tile
+> not a terrible idea but just dosnt work for what we want to do.
+
+so if we try to fit 6 layers into 1 128x128 tile, we will not have enof room for row skipping. 
+so im thinking we shud use bigger tiles. 
+
+> yeah they use pipelining, that makes sense.
+  > they even say it dosnt make sense to mix layers.
+  > well it does if u are 1024x1024.
+  
+----
+
+yeah def dosnt make sense at 128x128
+alright so lets not mix layers.
+
+so each layer will get its own list of PEs. 
+> do we really want to build it like that tho ? 
+> i think we shud build it to handle mixing.
+
+where each array stores layers 
+where total weights in all layers sums to 128x128
+yeah i like that idea.
+
+this means that network should perform convolution right ?
+ah that is pretty cool actually.
+
+----
+
+
+
+
+
 
 
 
