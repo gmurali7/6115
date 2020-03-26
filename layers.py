@@ -9,10 +9,10 @@ from pim import *
 ##############################################
 
 class Network:
-    def __init__(self, tiles, num_layers):
-        self.tiles = tiles
-        self.num_tiles = len(tiles)
-        self.num_layers = num_layers
+    def __init__(self, arrays, array_maps):
+        self.arrays = arrays
+        self.array_maps = array_maps
+        self.num_layers = len(array_maps)
 
     def forward(self, x):
         num_examples, _, _, _ = np.shape(x)
@@ -21,36 +21,30 @@ class Network:
         for example in range(num_examples):
             y[example] = x[example]
             for layer in range(self.num_layers):
-
-                h, w, c = np.shape(y[example])
+                y[example] = self.conv(layer=layer, x=y[example])
                 
-                ################################
-                
-                if c <= 3:
-                    y[example] = self.tiles[0].forward(layer=layer, x=y[example])
-                else:
-                    assert ((c % self.num_tiles) == 0)
-                    cut_c = c // self.num_tiles
-
-                    for tile in range(self.num_tiles):
-                        # we need to move quantization outside of layer.
-                        c1 = tile * cut_c
-                        c2 = (tile + 1) * cut_c
-                        self.tiles[tile].forward(layer=layer, x=y[example][:, :, c1:c2])
-
-                    y[example] = self.reduce()
-                
-                ################################
-
-                y[example] += self.tiles[0].layers[layer].b
-                y[example] *= (y[example] > 0)
-                y[example] = y[example] // self.tiles[0].layers[layer].q 
-                y[example] = np.clip(y[example], 0, 127)
-                y[example] = y[example].astype(int)
-
         return y
-                
+        
+    def conv(self, layer, x):
+        '''
+        Hi, Wi, Ci = np.shape(x)
+        Fh, Fw, Fc, Co = np.shape(f)
+        assert (Ci == Fc)
+        Ho = conv_output_length(Hi, Fh, 'same', stride)
+        Wo = conv_output_length(Hi, Fw, 'same', stride)
 
+        x = np.pad(array=x, pad_width=[[pad1,pad2], [pad1,pad2], [0,0]], mode='constant')
+        y = np.zeros(shape=(Ho, Wo, Co))
+        f_matrix = np.reshape(f, (Fh * Fw * Ci, Co))
+
+        for h in range(Ho):        
+            for w in range(Wo):
+                patch = np.reshape(x[h*stride:(h*stride+Fh), w*stride:(w*stride+Fw), :], -1)
+                assert(np.prod(np.shape(patch)) == np.shape(f_matrix)[0])
+                y[h, w, :] = dot(patch, f_matrix, b, q)
+        '''
+            
+            
     def reduce(self):
         reduce_steps = np.log2(self.num_tiles)
         assert ((reduce_steps % 1) <= 0)
@@ -103,11 +97,12 @@ class Array:
         self.weights = weights
         self.params = params
 
-    def forward(self, partition, x):
+    def dot(self, partition, x):
         self.rec_count += np.prod(np.shape(x))
         self.y = self.weights[partition] @ x
         return self.y
-                
+
+    '''
     def reduce(self):
         self.send_count += np.prod(np.shape(self.y))
         return self.y
@@ -116,6 +111,7 @@ class Array:
         self.rec_count += np.prod(np.shape(x))
         self.y += x
         return self.y
+    '''
 
 ##############################################
 
@@ -151,6 +147,7 @@ class Model:
 
             array_maps.append(array_map)
             
+        return arrays, array_maps
                     
 ##############################################
 

@@ -48,7 +48,8 @@ Conv(input_size=(16,16,128), filter_size=(3,3,128,128), stride=2, pad1=1, pad2=1
 ]
 
 model = Model(layers=layers)
-network = model.cut(params=params)
+arrays, array_maps = model.cut(params=params)
+network = Network()
 
 ####
 
