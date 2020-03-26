@@ -227,11 +227,11 @@ BUT this means we need the distributed convolution function.
 
 what we do right now:
 > split each conv 16 ways
-> put 1/16 of all 6 layers into a tile
+> put 1/16 of all 6 layers into a array
 > not a terrible idea but just dosnt work for what we want to do.
 
-so if we try to fit 6 layers into 1 128x128 tile, we will not have enof room for row skipping. 
-so im thinking we shud use bigger tiles. 
+so if we try to fit 6 layers into 1 128x128 array, we will not have enof room for row skipping. 
+so im thinking we shud use bigger arrays. 
 
 > yeah they use pipelining, that makes sense.
   > they even say it dosnt make sense to mix layers.
@@ -254,6 +254,194 @@ this means that network should perform convolution right ?
 ah that is pretty cool actually.
 
 ----
+
+there is nothing to conv here, 
+the only thing with conv is flattening the patch out and doing 1 patch at a time.
+
+so we will do the conv in network
+how do we create the arrays though ? 
+do we do it from Conv ? 
+
+the issue with creating arrays, is if they are taller than 128.
+what do we do with a dense layer ? 
+something that is 1024x10.
+
+i guess it comes down to whether the PEs should sum together OR they should concatenate.
+because i wud like to do this as clever distributed arrays
+the network has mappings to go gather shit at each one. 
+
+but then there is the issue with knowing how the x data shud feed into each one.
+
+----
+
+alright so the issue was with doing this correctly - lol
+is that we need to slice things up into N 128x128 arrays. 
+
+previously we sliced things up 4 ways and then appended to each PCM
+that worked because we had 1024 rows.
+now we only have 128 per.
+
+so now we need to change things up a bit with how we map weights.
+3*3*64/16 = 36. 128-36 = 100, dont want to throw all those rows away
+
+so how can we make use of them ?
+and we dont want to process by layer.
+we want to be configurable.
+also tho - there is no way we wud have ADC space for this.
+
+its supposed to be 8 columns to an ADC.
+so we wud definitely want to use more than 1 array.
+how do we use more than 1 column per array.
+
+----
+
+so i guess the question is, what if we have 32 arrays or something ? 
+do we go to -> 3*3*64/32 ... thats basically nothing. 
+
+see that is the problem there. 
+u need to come up with a rule for this case. 
+
+and what if the height is larger than 128 ? 
+well then u need to add some together
+and if its shorting u need to bin them together
+
+----
+
+> so both layers spit out a matrix
+> then we add distributed conv and distriuted dense to network
+> and we have to dice up that matrix somehow - but the idea remains the same it will always be matrix multiplication
+  > which greatly simplifies things. 
+  
+besides for layers, does it ever make sense to split rows ? 
+or will the weights always be active anyways ?
+well no, it does make sense so that u can run in other arrays. 
+but how much u split is the question
+AND then u have to sum between the arrays. but u already have to do that anyways so i wudnt worry about that
+well it cud be advantagous not to have to sum accross all of them tho.
+
+----
+
+back to previous idea
+we get a matrix 
+okay time to slice it up.
+for our purposes just slicing up within the PE.
+
+becaue we have 128x128, so wud we want to slice up over many PEs ?
+> that is the big q
+
+16 array
+9 PE
+16 Tile
+
+okay - lets start by turning everything into PEs 
+we can think about splitting over layers later.
+
+> time to make progress.
+
+----
+
+alright so we dump weights
+then we divide up into arrays.
+3x3x128x128 is larger than we can stick into 1 array.
+do we put it into more than 16 arrays ? 
+
+I think we maybe ignore the PE thing they do
+and just do 2 abstraction layers
+Array and whole thing. 
+ehh i actually like the PE thing
+okay maybe just 3 tho.
+
+yeah so - Array, PE, Whole chip
+well actually what they do with the 3x3 filter is pretty clever lol.
+
+so we divide over 9 tiles - that much i like.
+but what do they do about layers like
+3x3x64x64.
+
+oh wait
+they duplicate inside the same PE dont they.
+and then they run many patches in the same PE.
+i see.
+
+----
+
+what happens for dense layers lol
+can we just ignore dense layers ? 
+I think we just ignore dense layers ...
+
+that will make life simpler.
+
+or we scrap the Tile thing. 
+
+they do 16*128x128 so they can do a 1x1x512.
+
+----
+
+i dont have a problem with slicing by 1x1s, but we shud toss the idea of tile=3x3 PE I think.
+
+----
+
+> u dont need to slice over the 3x3 in this way.
+> but does it make sense to do so ? 
+
+i mean keep in mind we are doing this for large chip
+almost feel like it wud make the most sense to scale the #MAC to how much duplication u do.
+
+so this wud be easiest if we knew the size of the chip.
+> 1560 PEs on whole chip
+> 1560 * 16 * 128x128
+> that is insane.
+
+but maybe what we shud target something else. 
+how many of these PEs ? 
+
+well actually we shud be able to scale up.
+and just duplicate shit.
+and duplicate based on what DOSNT create a bottleneck.
+
+----
+
+true - but realize that we still need to create a kernel for each one
+before it can be duplicated.
+
+OH WOW - so this is interesting because of duplication.
+u need pretty crazy SRAM bandwidth.
+
+---- 
+
+so how you duplicate / slice (by rows) matrices will depend on how much space we have ? 
+well duplcation yes, but different for slice
+slice needs to know how much space we have before hand
+and what slice size we want. 
+because if u only have enof space for this layer then u are in trouble. 
+well i guess it really just needs to know how many rows per array u want to do .
+
+yeah thats really it.
+
+and instead of slicing channel wise, we shud be slicing XY wise.
+WHICH is actually what we started doing in the RTL recall.
+
+----
+
+alright so we starting to get stuff now.
+so first we create a kernel for each layer
+then we duplicate based on how much space we left
+duplication is ez and deterministic.
+
+1) rows per array
+2) 
+3) duplicate based on leftover space and mac in each layer.
+
+----
+
+shud we not compute rows per array ? 
+i think rows per array can certainly be computed
+BUT I dont want to do it right now.
+so we will hardcod it.
+
+----
+
+
 
 
 
