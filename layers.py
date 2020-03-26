@@ -131,25 +131,27 @@ class Model:
         for example in range(num_examples):
             y[example] = x[example]
             for layer in range(num_layers):
-                y[example] = self.layers[layer].forward_ref(x=y[example])
+                y[example] = self.layers[layer].forward(x=y[example])
 
         return y
 
     def cut(self, params):
         num_layers = len(self.layers)
 
+        arrays = []
+        array_maps = []
         for layer in range(num_layers):
-            arrays = []
             weights = self.layers[layer].cut(params=params)
             nwl, _, nbl, _ = np.shape(weights)
+            array_map = np.zeros(shape=(nwl, nbl, 2)) 
             for wl in range(nwl):
                 for bl in range(nbl):
-                    array = Array(weights=weights[:, bl, :, wl], params=params)
-                    arrays.append(array)
-                    
-            print (len(arrays))
-            
+                    arrays.append(Array(weights=weights[:, bl, :, wl], params=params))
+                    array_map[wl][bl] = np.array([len(arrays), 0])
 
+            array_maps.append(array_map)
+            
+                    
 ##############################################
 
 class Layer:
@@ -159,9 +161,6 @@ class Layer:
     def forward(self, x):   
         assert(False)
         
-    def forward_ref(self, x):   
-        assert(False)
-
     def rpr(self):
         assert(False)
 
@@ -214,11 +213,6 @@ class Conv(Layer):
         ##############################
 
     def forward(self, x):
-        # y = pim_conv(x=x, f=self.w, b=self.b, q=self.q, stride=self.s, pad1=self.p1, pad2=self.p2, params=self.params)
-        y = conv(x=x, f=self.w, b=self.b, q=self.q, stride=self.s, pad1=self.p1, pad2=self.p2)
-        return y
-        
-    def forward_ref(self, x):
         y = conv(x=x, f=self.w, b=self.b, q=self.q, stride=self.s, pad1=self.p1, pad2=self.p2)
         return y
 
