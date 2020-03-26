@@ -233,23 +233,23 @@ class Conv(Layer):
         ########################
         
         nrow, ncol, nbit = np.shape(wb)
-        if (nrow % self.params['wl']):
-            zeros = np.zeros(shape=(self.params['wl'] - (nrow % self.params['wl']), ncol, nbit))
+        if (nrow % self.params['rpa']):
+            zeros = np.zeros(shape=(self.params['rpa'] - (nrow % self.params['rpa']), ncol, nbit))
             wb = np.concatenate((wb, zeros), axis=0)
 
         nrow, ncol, nbit = np.shape(wb)
-        wb = np.reshape(wb, (-1, self.params['wl'], ncol, nbit))
+        wb = np.reshape(wb, (-1, self.params['rpa'], ncol, nbit))
 
         nwl, wl, ncol, nbit = np.shape(wb)
         wb = np.transpose(wb, (0, 1, 3, 2))
-        wb = np.reshape(wb, (nwl, self.params['wl'], nbit * ncol))
+        wb = np.reshape(wb, (nwl, self.params['rpa'], nbit * ncol))
         
         nwl, wl, ncol = np.shape(wb)
         if (ncol % self.params['bl']):
-            zeros = np.zeros(shape=(nwl, self.params['wl'], self.params['bl'] - (ncol % self.params['bl'])))
+            zeros = np.zeros(shape=(nwl, self.params['rpa'], self.params['bl'] - (ncol % self.params['bl'])))
             wb = np.concatenate((wb, zeros), axis=2)
 
-        wb = np.reshape(wb, (nwl, self.params['wl'], -1, self.params['bl']))
+        wb = np.reshape(wb, (nwl, self.params['rpa'], -1, self.params['bl']))
 
         print (np.shape(wb))
 
