@@ -441,8 +441,13 @@ so we will hardcod it.
 
 ----
 
-
-
+can we use splitting in XY dimension, to prevent weird shapes ? 
+> split XY, 
+> yeah i mean we can just make conv do that. 
+  > but consider case for 3x3x64x64.
+  > we cant satisfy 128 rows if we split the 9 ways, so we end up with less
+  > actually seems to be no reason to me to split XY direction.
+  > just fill it all the way up.
 
 
 
