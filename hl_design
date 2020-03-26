@@ -1,0 +1,9 @@
+
+weight partitioning
+> every thing is a matrix, conv and dense. think about them the same.
+> need to consider HOW MANY arrays you have in the design, this leads to
+  1) duplication - you duplicate based on #MAC per layer.
+  2) rows per array - this can be computed optimally, but we are just going to hard code it.
+
+> there is NO way to fit ALL layers into a single PE.
+
