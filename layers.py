@@ -98,7 +98,7 @@ class Array:
         self.params = params
 
     def dot(self, partition, x):
-        self.rec_count += np.prod(np.shape(x))
+        # self.rec_count += np.prod(np.shape(x))
         self.y = self.weights[partition] @ x
         return self.y
 
