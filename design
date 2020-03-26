@@ -163,16 +163,47 @@ he has the pool/activation at the core level.
 
 ----
 
+> turn everything into tiles ? 
+  > that all do the same thing ? 
 
+how many tiles do we divide things up into ? 
+> 128x128 -> 128x16
+> up to 256 outputs.
+> 256 / 16 -> 16.
+  > means we need 16 tiles for this layer.
+  > fine with this being the width I think.
+  > maybe we wud want less tiles tho.
+  >> duplications add up in the paper if u check that part out.
 
+so really what we want to do is conv.
 
+WAIT:
+it goes:
+> chip - ?
+> tile - 9
+> pe - 16
+> array - 128x128
 
+----
 
+alright so we divide up conv layer into 1 PE = 16 arrays.
+128/8 = 16. 256/16 = 16.
 
+then what do we do ? 
+i dont think we shud worry about how we distribute weights such that we maximize throughput
+just assume that we always can.
+well the only thing is - we probably want to distribute so we have multiple convolutions over 2 subarrays and then combine them together. 
 
+yeah but if we are building a large scale design we dont really care that much ... 
+because u parallelize over BXY.
 
+----
 
+okay, so the way i see it. 
+we shud pull back from PIM operations
+and figure out the architecture first.
 
+actually dont need PIM to do this .
 
 
 

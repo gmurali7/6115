@@ -41,13 +41,12 @@ class Network:
                     y[example] = self.reduce()
                 
                 ################################
-                '''
-                y[example] += b
+
+                y[example] += self.tiles[0].layers[layer].b
                 y[example] *= (y[example] > 0)
-                y[example] = y[example] // q 
+                y[example] = y[example] // self.tiles[0].layers[layer].q 
                 y[example] = np.clip(y[example], 0, 127)
                 y[example] = y[example].astype(int)
-                '''
 
         return y
                 
@@ -89,6 +88,29 @@ class Tile:
         self.y += x
         return self.y
 
+##############################################
+'''
+class PE:
+    def __init__(self, weights):
+        self.layers = layers
+        self.rec_count = 0
+        self.send_count = 0
+        self.y = 0
+
+    def forward(self, layer, x):
+        self.rec_count += np.prod(np.shape(x))
+        self.y = self.layers[layer].forward(x)
+        return self.y
+                
+    def reduce(self):
+        self.send_count += np.prod(np.shape(self.y))
+        return self.y
+        
+    def accum(self, x):
+        self.rec_count += np.prod(np.shape(x))
+        self.y += x
+        return self.y
+'''
 ##############################################
 
 class Model:
@@ -165,12 +187,7 @@ class Conv(Layer):
 
         maxval = 2 ** (8 - 1)
         minval = -1 * maxval
-        if weights == None:
-            values = np.array(range(minval + 1, maxval))
-            self.w = np.random.choice(a=values, size=self.filter_size, replace=True).astype(int)
-            self.b = np.zeros(shape=self.fn).astype(int)
-            self.q = 200
-        else:
+        if weights is not None:
             self.w, self.b, self.q = weights
             assert (np.all(self.w >= minval))
             assert (np.all(self.w <= maxval))
@@ -184,6 +201,11 @@ class Conv(Layer):
             self.q = int(self.q)
             # q must be larger than 0
             assert(self.q > 0)
+        else:
+            values = np.array(range(minval + 1, maxval))
+            self.w = np.random.choice(a=values, size=self.filter_size, replace=True).astype(int)
+            self.b = np.zeros(shape=self.fn).astype(int)
+            self.q = 200
             
         w_offset = self.w + params['offset']
         wb = []
@@ -207,10 +229,18 @@ class Conv(Layer):
             else:
                 assert ((self.c % num_tiles) == 0)
                 cut_c = self.c // num_tiles
+                
                 start = tile * cut_c
                 end = start + cut_c
-                cut_weights = self.weights[:, :, start:end, :]
-                tiles[tile] = Conv(input_size=(self.h, self.w, cut_c), filter_size=(self.fh, self.fw, cut_c, self.fn), stride=self.s, pad1=self.p1, pad2=self.p2, weights=cut_weights, params=self.params)
+                cut_weights = self.w[:, :, start:end, :]
+                
+                tiles[tile] = Conv(input_size=(self.h, self.w, cut_c), 
+                                   filter_size=(self.fh, self.fw, cut_c, self.fn), 
+                                   stride=self.s, 
+                                   pad1=self.p1, 
+                                   pad2=self.p2, 
+                                   weights=(cut_weights, self.b, self.q),
+                                   params=self.params)
 
         return tiles
 
