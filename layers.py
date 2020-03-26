@@ -100,8 +100,9 @@ class Array:
 
     def dot(self, partition, x):
         # self.rec_count += np.prod(np.shape(x))
-        y = self.weights[:, 0:len(x)] @ x
+        y = x @ self.weights[0:len(x), :]
         y = np.reshape(y, (-1, self.params['bpw'])) @ self.shift
+        y -= 128 * np.sum(x)
         return y
 
     '''
@@ -236,7 +237,14 @@ class Conv(Layer):
     ##############################
 
     def forward(self, x):
-        y = conv(x=x, f=self.w, b=self.b, q=self.q, stride=self.s, pad1=self.p1, pad2=self.p2)
+        y = conv(x=x, f=self.w, stride=self.s, pad1=self.p1, pad2=self.p2)
+
+        y = y + self.b
+        y = y * (y > 0)
+        y = y.astype(int)
+        y = y // self.q 
+        y = np.clip(y, 0, 127)
+
         return y
 
     def forward_dist(self, x):
@@ -259,10 +267,19 @@ class Conv(Layer):
                         
                         y1 = j * 16
                         y2 = y1 + 16
-                                                
+
+                        # print (x1, x2, y1, y2)
+
                         array, partition = self.array_maps[i][j]
-                        y[h, w, y1:y2] = self.arrays[array].dot(partition, patch[x1:x2])
-                        
+                        y[h, w, y1:y2] += self.arrays[array].dot(partition, patch[x1:x2])
+
+
+        y = y + self.b
+        y = y * (y > 0)
+        y = y.astype(int)
+        y = y // self.q 
+        y = np.clip(y, 0, 127)
+
         return y
 
     ##############################

@@ -461,6 +461,9 @@ so im thinking there are two ways to go:
 > collect all arrays in model, then pass them back.
 > or bundle all params into a dictionary and return them from conv.
 
+----
+
+
 
 
 
