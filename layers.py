@@ -109,30 +109,7 @@ class Network:
                 self.tiles[accum_tile].accum(self.tiles[reduce_tile].reduce())
                 
         return self.tiles[0].reduce()
-        
-##############################################
-'''
-class Tile:
-    def __init__(self, layers):
-        self.layers = layers
-        self.rec_count = 0
-        self.send_count = 0
-        self.y = 0
 
-    def forward(self, layer, x):
-        self.rec_count += np.prod(np.shape(x))
-        self.y = self.layers[layer].forward(x)
-        return self.y
-                
-    def reduce(self):
-        self.send_count += np.prod(np.shape(self.y))
-        return self.y
-        
-    def accum(self, x):
-        self.rec_count += np.prod(np.shape(x))
-        self.y += x
-        return self.y
-'''
 ##############################################
 
 '''
@@ -193,18 +170,6 @@ class Model:
             y[example] = x[example]
             for layer in range(num_layers):
                 y[example] = self.layers[layer].forward(x=y[example])
-
-        return y
-        
-    def forward_dist(self, x):
-        num_examples, _, _, _ = np.shape(x)
-        num_layers = len(self.layers)
-        
-        y = [None] * num_examples
-        for example in range(num_examples):
-            y[example] = x[example]
-            for layer in range(num_layers):
-                y[example] = self.layers[layer].forward_dist(x=y[example])
 
         return y
 
@@ -325,44 +290,6 @@ class Conv(Layer):
 
     def forward(self, x):
         y = conv(x=x, f=self.w, stride=self.s, pad1=self.p1, pad2=self.p2)
-
-        y = y + self.b
-        y = y * (y > 0)
-        y = y.astype(int)
-        y = y // self.q 
-        y = np.clip(y, 0, 127)
-
-        return y
-
-    def forward_dist(self, x):
-        Ho = conv_output_length(self.xh, self.fh, 'same', self.s)
-        Wo = Ho
-        Co = self.fn
-
-        x = np.pad(array=x, pad_width=[[self.p1,self.p2], [self.p1,self.p2], [0,0]], mode='constant')
-        y = np.zeros(shape=(Ho, Wo, Co))
-
-        ad, ah, aw, _ = np.shape(self.array_maps)
-
-        for pix in range(Ho * Wo):
-            h = pix // Wo
-            w = pix % Wo
-            a = pix % ad
-            patch = np.reshape(x[h*self.s:(h*self.s+self.fh), w*self.s:(w*self.s+self.fw), :], -1)
-            
-            for i in range(ah):
-                for j in range(aw):
-                    x1 = i * 128
-                    x2 = min(x1 + 128, len(patch))
-                    
-                    y1 = j * 16
-                    y2 = y1 + 16
-
-                    # print (x1, x2, y1, y2)
-
-                    array, partition = self.array_maps[a][i][j]
-                    y[h, w, y1:y2] += self.arrays[array].dot(partition, patch[x1:x2])
-
 
         y = y + self.b
         y = y * (y > 0)

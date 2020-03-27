@@ -473,15 +473,18 @@ okay we sorta did that ^
 now what ?
 
 cycle level accuracy ? 
-> so this means we have to do pim right 
-> 
+> x bit sharing
+  > well we can account for x_bit sharing after the fact.
+  
+> adc < col
+  > 8 adc / col
+
+> pim dosnt do a full 128 bits/cycle.
+  > assume 0 skipping and just return np.count_ones(x) / 8
+
+
 
 ----
-
-
-
-
-
 
 
 
