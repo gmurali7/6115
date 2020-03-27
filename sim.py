@@ -56,7 +56,7 @@ network = Network(ops=model.ops(), arrays=arrays, array_maps=array_maps)
 
 ####
 
-x = init_x(1, (32, 32), 0, 127)
+x = init_x(10, (32, 32), 0, 127)
 assert (np.min(x) >= 0 and np.max(x) <= 127)
 y = network.forward(x=x)
 # y = model.forward_dist(x=x)

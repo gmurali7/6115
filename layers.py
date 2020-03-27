@@ -14,6 +14,7 @@ class Network:
         self.arrays = arrays
         self.array_maps = array_maps
         self.num_layers = len(array_maps)
+        self.cycles = 0
 
     def forward(self, x):
         num_examples, _, _, _ = np.shape(x)
@@ -21,8 +22,9 @@ class Network:
         y = [None] * num_examples
         for example in range(num_examples):
             y[example] = x[example]
-            for layer in range(self.num_layers):
-                y[example] = self.conv(layer=layer, x=y[example])
+            for layer in range(min(example, self.num_layers) + 1):
+                print ('%d: layer: %d example: %d' % (example, layer, example - layer))
+                y[example - layer] = self.conv(layer=layer, x=y[example - layer])
                 
         return y
         
@@ -136,11 +138,11 @@ class Array:
         pprod = np.left_shift(pprod.astype(int), x_bit)
         offset = 128 * np.sum(np.left_shift(x, x_bit))
         self.y += (pprod - offset)
-        self.send_count += 1 # np.prod(np.shape(y))
-        return pprod - offset
+        # self.send_count += 1 # np.prod(np.shape(y))
+        # return pprod - offset
 
     def reduce(self):
-        self.send_count += np.prod(np.shape(self.y))
+        self.send_count += 1 # np.prod(np.shape(self.y))
         ret = self.y 
         self.y = 0
         return ret
