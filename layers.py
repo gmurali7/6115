@@ -68,7 +68,7 @@ class Network:
             patch = np.reshape(x[h*S:(h*S+K), w*S:(w*S+K), :], -1)
             
             for bit in range(8):
-                cycles += 1
+                cycles += (a == 0)
                 for i in range(ah):
                     for j in range(aw):
                         x1 = i * 128
@@ -228,7 +228,10 @@ class Model:
         array_maps = []
         for layer in range(num_layers):
             p = self.layers[layer].nmac / nmac
-            ndup = p * (2048 * 128 * 128) / np.prod(np.shape(self.layers[layer].cut(params=params)))
+            if (layer == 0):
+                ndup = p * (2048 * 128 * 128) / np.prod(np.shape(self.layers[layer].cut(params=params))) * (128 / 27)
+            else:
+                ndup = p * (2048 * 128 * 128) / np.prod(np.shape(self.layers[layer].cut(params=params)))
             ndup = int(ndup)
             
             nwl, _, nbl, _ = np.shape(weights[layer])

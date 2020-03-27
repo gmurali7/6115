@@ -56,7 +56,7 @@ network = Network(ops=model.ops(), arrays=arrays, array_maps=array_maps)
 
 ####
 
-x = init_x(2, (32, 32), 0, 127)
+x = init_x(8, (32, 32), 0, 127)
 assert (np.min(x) >= 0 and np.max(x) <= 127)
 y, cycles = network.forward(x=x)
 # y = model.forward_dist(x=x)
@@ -69,6 +69,8 @@ assert (np.all(np.array(y) == np.array(y_ref)))
 
 total_send = 0
 total_rec = 0
+
+print (len(layers[0].arrays))
 
 for array in range(len(layers[0].arrays)):
     total_send += layers[0].arrays[array].send_count
