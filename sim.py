@@ -45,30 +45,25 @@ Conv(input_size=(32,32,64), filter_size=(3,3,64,64), stride=2, pad1=1, pad2=1, w
 
 Conv(input_size=(16,16,64), filter_size=(3,3,64,128), stride=1, pad1=1, pad2=1, weights=None),
 Conv(input_size=(16,16,128), filter_size=(3,3,128,128), stride=2, pad1=1, pad2=1, weights=None),
+
+Conv(input_size=(8,8,128), filter_size=(3,3,128,256), stride=1, pad1=1, pad2=1, weights=None),
+Conv(input_size=(8,8,256), filter_size=(3,3,256,256), stride=2, pad1=1, pad2=1, weights=None),
 ]
 
 model = Model(layers=layers)
 arrays, array_maps = model.cut(params=params)
-network = Network(arrays, array_maps)
+# network = Network(arrays, array_maps)
 
 ####
 
-tests = [
-(1, (32, 32), network)
-]
-
-####
-
-for test in tests:
-    num_example, input_shape, network = test
-    x = init_x(num_example, input_shape, 0, 127)
-    assert (np.min(x) >= 0 and np.max(x) <= 127)
-    # y = network.forward(x=x)
-    y = model.forward_dist(x=x)
-    y_ref = model.forward(x=x)
-    # print (np.shape(y), np.shape(y_ref))
-    # print (y[0][15][15], y_ref[0][15][15].flatten()[0:40])
-    assert (np.all(y[0] == y_ref[0]))
+x = init_x(1, (32, 32), 0, 127)
+assert (np.min(x) >= 0 and np.max(x) <= 127)
+# y = network.forward(x=x)
+y = model.forward_dist(x=x)
+y_ref = model.forward(x=x)
+# print (np.shape(y), np.shape(y_ref))
+# print (y[0][15][15], y_ref[0][15][15].flatten()[0:40])
+assert (np.all(y[0] == y_ref[0]))
     
 ####
 

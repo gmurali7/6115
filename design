@@ -463,6 +463,12 @@ so im thinking there are two ways to go:
 
 ----
 
+> distributed conv
+> duplicate weights
+
+> 2048 arrays = 128 PE * 16 Arrays
+
+----
 
 
 

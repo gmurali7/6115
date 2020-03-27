@@ -169,6 +169,17 @@ class Model:
         for layer in range(num_layers):
             self.layers[layer].set_arrays(arrays)
             self.layers[layer].set_array_maps(array_maps[layer])
+           
+        nmac = 0
+        for layer in range(num_layers):
+            nmac += self.layers[layer].nmac
+
+        # definitely better ways to calculate this.
+        # like compute 1 at a time, then re-evaluate. so we dont lose 6 rounding errors. 
+        for layer in range(num_layers):
+            p = self.layers[layer].nmac / nmac
+            factor = p * (2048 * 128 * 128) / np.prod(np.shape(self.layers[layer].cut(params=params)))
+            print (np.floor(factor))
             
         return arrays, array_maps
                     
@@ -205,8 +216,12 @@ class Conv(Layer):
         self.p1 = pad1
         self.p2 = pad2
         
-        self.y_h = (self.h - self.fh + self.s + self.p1 + self.p2) / self.s
-        self.y_w = (self.w - self.fw + self.s + self.p1 + self.p2) / self.s
+        self.yh = (self.h - self.fh + self.s + self.p1 + self.p2) / self.s
+        self.yw = (self.w - self.fw + self.s + self.p1 + self.p2) / self.s
+        
+        self.nmac = (self.fh * self.fw * self.fc * self.fn) * (self.yh * self.yw)
+        # self.cells = (self.fh * self.fw * self.fc * self.fn) * 8
+        # self.cells = np.prod(np.shape(self.wb)) # not the above.
 
         maxval = 2 ** (8 - 1)
         minval = -1 * maxval
