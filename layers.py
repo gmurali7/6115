@@ -59,7 +59,9 @@ class Network:
                         xb = np.bitwise_and(np.right_shift(patch[x1:x2].astype(int), bit), 1)
 
                         array, partition = self.array_maps[layer][a][i][j]
-                        y[h, w, y1:y2] += self.arrays[array].dot(partition, xb, bit)
+                        self.arrays[array].dot(partition, xb, bit)
+                        
+                    y[h, w, y1:y2] += self.arrays[array].reduce()
 
         y = y + b
         y = y * (y > 0)
@@ -132,15 +134,18 @@ class Array:
         pprod = x @ self.weights[0:len(x), :]
         pprod = np.reshape(pprod, (-1, self.params['bpw'])) @ self.shift
         pprod = np.left_shift(pprod.astype(int), x_bit)
-        pprod -= 128 * np.sum(np.left_shift(x, x_bit))
+        offset = 128 * np.sum(np.left_shift(x, x_bit))
+        self.y += (pprod - offset)
         self.send_count += 1 # np.prod(np.shape(y))
-        return pprod
+        return pprod - offset
 
-    '''
     def reduce(self):
         self.send_count += np.prod(np.shape(self.y))
-        return self.y
+        ret = self.y 
+        self.y = 0
+        return ret
         
+    '''
     def accum(self, x):
         self.rec_count += np.prod(np.shape(x))
         self.y += x
