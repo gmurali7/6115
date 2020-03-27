@@ -94,15 +94,19 @@ array level design questions:
 
 class Array:
     def __init__(self, weights, params):
+        self.rec_count = 0
+        self.send_count = 0
+    
         self.weights = weights
         self.params = params
         self.shift = 2 ** np.array(range(self.params['bpw']))
 
     def dot(self, partition, x):
-        # self.rec_count += np.prod(np.shape(x))
+        self.rec_count += 1 # np.prod(np.shape(x))
         y = x @ self.weights[0:len(x), :]
         y = np.reshape(y, (-1, self.params['bpw'])) @ self.shift
         y -= 128 * np.sum(x)
+        self.send_count += 1 # np.prod(np.shape(y))
         return y
 
     '''

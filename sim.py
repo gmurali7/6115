@@ -72,8 +72,8 @@ for test in tests:
     
 ####
 
-
-
+for array in range(len(layers[0].arrays)):
+    print (array, layers[0].arrays[array].rec_count, layers[0].arrays[array].send_count)
 
 
 
