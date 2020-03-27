@@ -14,25 +14,36 @@ class Network:
         self.arrays = arrays
         self.array_maps = array_maps
         self.num_layers = len(array_maps)
-        self.cycles = 0
 
     def forward(self, x):
         num_examples, _, _, _ = np.shape(x)
         
+        total_cycles = 0        
         y = [None] * num_examples
+        
         for example in range(num_examples):
+            max_cycles = 0
             y[example] = x[example]
             for layer in range(min(example + 1, self.num_layers)):
-                print ('%d: layer: %d example: %d' % (example, layer, example - layer))
-                y[example - layer] = self.conv(layer=layer, x=y[example - layer])
+                # print ('%d: layer: %d example: %d' % (example, layer, example - layer))
+                y[example - layer], cycles = self.conv(layer=layer, x=y[example - layer])
+                max_cycles = max(max_cycles, cycles)
+                print (layer, cycles)
+                
+            total_cycles += max_cycles
         
         for last_example in range(1, self.num_layers):
+            max_cycles = 0
             for layer in range(last_example, min(num_examples + last_example, self.num_layers)):
                 example = num_examples - layer + last_example - 1
-                print ('%d: layer: %d example: %d' % (last_example, layer, example))
-                y[example] = self.conv(layer=layer, x=y[example])
-        
-        return y
+                # print ('%d: layer: %d example: %d' % (last_example, layer, example))
+                y[example], cycles = self.conv(layer=layer, x=y[example])
+                max_cycles = max(max_cycles, cycles)
+                print (layer, cycles)
+
+            total_cycles += max_cycles
+
+        return y, total_cycles
         
     def conv(self, x, layer):
         op = self.ops[layer]
@@ -47,6 +58,7 @@ class Network:
                 
         x = np.pad(array=x, pad_width=[[P1,P2], [P1,P2], [0,0]], mode='constant')
         y = np.zeros(shape=(Ho, Wo, Co))
+        cycles = 0
 
         ad, ah, aw, _ = np.shape(self.array_maps[layer])
         for pix in range(Ho * Wo):
@@ -55,9 +67,10 @@ class Network:
             a = pix % ad
             patch = np.reshape(x[h*S:(h*S+K), w*S:(w*S+K), :], -1)
             
-            for i in range(ah):
-                for j in range(aw):
-                    for bit in range(8):
+            for bit in range(8):
+                cycles += 1
+                for i in range(ah):
+                    for j in range(aw):
                         x1 = i * 128
                         x2 = min(x1 + 128, len(patch))
                         
@@ -68,7 +81,12 @@ class Network:
 
                         array, partition = self.array_maps[layer][a][i][j]
                         self.arrays[array].dot(partition, xb, bit)
-                        
+
+            for i in range(ah):
+                for j in range(aw):
+                    y1 = j * 16
+                    y2 = y1 + 16
+                    array, partition = self.array_maps[layer][a][i][j]
                     y[h, w, y1:y2] += self.arrays[array].reduce()
 
         y = y + b
@@ -76,7 +94,7 @@ class Network:
         y = y.astype(int)
         y = y // q 
         y = np.clip(y, 0, 127)
-        return y
+        return y, cycles
 
     def reduce(self):
         reduce_steps = np.log2(self.num_tiles)

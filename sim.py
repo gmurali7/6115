@@ -56,9 +56,9 @@ network = Network(ops=model.ops(), arrays=arrays, array_maps=array_maps)
 
 ####
 
-x = init_x(10, (32, 32), 0, 127)
+x = init_x(2, (32, 32), 0, 127)
 assert (np.min(x) >= 0 and np.max(x) <= 127)
-y = network.forward(x=x)
+y, cycles = network.forward(x=x)
 # y = model.forward_dist(x=x)
 y_ref = model.forward(x=x)
 # print (np.shape(y), np.shape(y_ref))
@@ -66,13 +66,17 @@ y_ref = model.forward(x=x)
 assert (np.all(np.array(y) == np.array(y_ref)))
     
 ####
-'''
+
+total_send = 0
+total_rec = 0
+
 for array in range(len(layers[0].arrays)):
-    print (array, layers[0].arrays[array].rec_count, layers[0].arrays[array].send_count)
-'''
+    total_send += layers[0].arrays[array].send_count
+    total_rec += layers[0].arrays[array].rec_count
 
+print (total_send, total_rec, cycles)
 
-
+####
 
 
 
