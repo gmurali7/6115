@@ -9,7 +9,8 @@ from pim import *
 ##############################################
 
 class Network:
-    def __init__(self, arrays, array_maps):
+    def __init__(self, ops, arrays, array_maps):
+        self.ops = ops
         self.arrays = arrays
         self.array_maps = array_maps
         self.num_layers = len(array_maps)
@@ -25,26 +26,47 @@ class Network:
                 
         return y
         
-    def conv(self, layer, x):
-        '''
-        Hi, Wi, Ci = np.shape(x)
-        Fh, Fw, Fc, Co = np.shape(f)
-        assert (Ci == Fc)
-        Ho = conv_output_length(Hi, Fh, 'same', stride)
-        Wo = conv_output_length(Hi, Fw, 'same', stride)
-
-        x = np.pad(array=x, pad_width=[[pad1,pad2], [pad1,pad2], [0,0]], mode='constant')
+    def conv(self, x, layer):
+        op = self.ops[layer]
+        b, q = op['b'], op['q']
+        H, W, C = op['h'], op['w'], op['c']
+        K, N = op['k'], op['n']
+        S, P1, P2 = op['s'], op['p1'], op['p2']
+        
+        Ho = conv_output_length(H, K, 'same', S)
+        Wo = Ho
+        Co = N
+                
+        x = np.pad(array=x, pad_width=[[P1,P2], [P1,P2], [0,0]], mode='constant')
         y = np.zeros(shape=(Ho, Wo, Co))
-        f_matrix = np.reshape(f, (Fh * Fw * Ci, Co))
 
-        for h in range(Ho):        
-            for w in range(Wo):
-                patch = np.reshape(x[h*stride:(h*stride+Fh), w*stride:(w*stride+Fw), :], -1)
-                assert(np.prod(np.shape(patch)) == np.shape(f_matrix)[0])
-                y[h, w, :] = dot(patch, f_matrix, b, q)
-        '''
+        ad, ah, aw, _ = np.shape(self.array_maps[layer])
+        for pix in range(Ho * Wo):
+            h = pix // Wo
+            w = pix % Wo
+            a = pix % ad
+            patch = np.reshape(x[h*S:(h*S+K), w*S:(w*S+K), :], -1)
             
-            
+            for i in range(ah):
+                for j in range(aw):
+                    x1 = i * 128
+                    x2 = min(x1 + 128, len(patch))
+                    
+                    y1 = j * 16
+                    y2 = y1 + 16
+
+                    # print (x1, x2, y1, y2)
+
+                    array, partition = self.array_maps[layer][a][i][j]
+                    y[h, w, y1:y2] += self.arrays[array].dot(partition, patch[x1:x2])
+
+        y = y + b
+        y = y * (y > 0)
+        y = y.astype(int)
+        y = y // q 
+        y = np.clip(y, 0, 127)
+        return y
+
     def reduce(self):
         reduce_steps = np.log2(self.num_tiles)
         assert ((reduce_steps % 1) <= 0)
@@ -150,6 +172,13 @@ class Model:
 
         return y
 
+    def ops(self):
+        ret = []
+        for layer in self.layers:
+            ret.append(layer.op())
+
+        return ret
+
     def cut(self, params):
         num_layers = len(self.layers)
         
@@ -204,20 +233,20 @@ class Conv(Layer):
     def __init__(self, input_size, filter_size, stride, pad1, pad2, weights):
 
         self.input_size = input_size
-        self.h, self.w, self.c = self.input_size
+        self.xh, self.xw, self.xc = self.input_size
                 
         self.filter_size = filter_size
         self.fh, self.fw, self.fc, self.fn = self.filter_size
         
-        assert(self.c == self.fc)
+        assert(self.xc == self.fc)
         assert(self.fh == self.fw)
 
         self.s = stride
         self.p1 = pad1
         self.p2 = pad2
         
-        self.yh = (self.h - self.fh + self.s + self.p1 + self.p2) / self.s
-        self.yw = (self.w - self.fw + self.s + self.p1 + self.p2) / self.s
+        self.yh = (self.xh - self.fh + self.s + self.p1 + self.p2) / self.s
+        self.yw = (self.xw - self.fw + self.s + self.p1 + self.p2) / self.s
         
         self.nmac = (self.fh * self.fw * self.fc * self.fn) * (self.yh * self.yw)
         # self.cells = (self.fh * self.fw * self.fc * self.fn) * 8
@@ -267,7 +296,7 @@ class Conv(Layer):
         return y
 
     def forward_dist(self, x):
-        Ho = conv_output_length(self.h, self.fh, 'same', self.s)
+        Ho = conv_output_length(self.xh, self.fh, 'same', self.s)
         Wo = Ho
         Co = self.fn
 
@@ -304,6 +333,12 @@ class Conv(Layer):
 
         return y
 
+    ##############################
+    
+    def op(self):
+        ret = {'b': self.b, 'q': self.q, 'h': self.xh, 'w': self.xw, 'c': self.xc, 'k': self.fh, 'n': self.fn, 's': self.s, 'p1': self.p1, 'p2': self.p2}
+        return ret
+        
     ##############################
 
     def cut(self, params):

@@ -52,14 +52,14 @@ Conv(input_size=(8,8,256), filter_size=(3,3,256,256), stride=2, pad1=1, pad2=1, 
 
 model = Model(layers=layers)
 arrays, array_maps = model.cut(params=params)
-# network = Network(arrays, array_maps)
+network = Network(ops=model.ops(), arrays=arrays, array_maps=array_maps)
 
 ####
 
 x = init_x(1, (32, 32), 0, 127)
 assert (np.min(x) >= 0 and np.max(x) <= 127)
-# y = network.forward(x=x)
-y = model.forward_dist(x=x)
+y = network.forward(x=x)
+# y = model.forward_dist(x=x)
 y_ref = model.forward(x=x)
 # print (np.shape(y), np.shape(y_ref))
 # print (y[0][15][15], y_ref[0][15][15].flatten()[0:40])
