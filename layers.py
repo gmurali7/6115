@@ -9,11 +9,11 @@ from pim import *
 ##############################################
 
 class Network:
-    def __init__(self, ops, arrays, array_maps):
+    def __init__(self, ops, pe, pe_maps):
         self.ops = ops
-        self.arrays = arrays
-        self.array_maps = array_maps
-        self.num_layers = len(array_maps)
+        self.pe = pe
+        self.pe_maps = pe_maps
+        self.num_layers = len(pe_maps)
 
     def forward(self, x):
         num_examples, _, _, _ = np.shape(x)
@@ -60,7 +60,7 @@ class Network:
         y = np.zeros(shape=(Ho, Wo, Co))
         total_cycles = 0
 
-        ad, ah, aw, _ = np.shape(self.array_maps[layer])
+        ad, ah = np.shape(self.pe_maps[layer])
         for pix in range(Ho * Wo):
             h = pix // Wo
             w = pix % Wo
@@ -70,28 +70,20 @@ class Network:
             for bit in range(8):
                 max_cycles = 0
                 for i in range(ah):
-                    for j in range(aw):
-                        x1 = i * 128
-                        x2 = min(x1 + 128, len(patch))
-                        
-                        y1 = j * 16
-                        y2 = y1 + 16
+                    x1 = i * 128
+                    x2 = min(x1 + 128, len(patch))
+                    xb = np.bitwise_and(np.right_shift(patch[x1:x2].astype(int), bit), 1)
 
-                        xb = np.bitwise_and(np.right_shift(patch[x1:x2].astype(int), bit), 1)
-
-                        array, partition = self.array_maps[layer][a][i][j]
-                        cycles = self.arrays[array].dot(partition, xb, bit)
-                        max_cycles = max(max_cycles, cycles)
+                    pe = self.pe_maps[layer][a][i]
+                    cycles = self.pe[pe].dot(xb, bit)
+                    max_cycles = max(max_cycles, cycles)
 
                 if (a == 0): 
                     total_cycles += max_cycles
 
             for i in range(ah):
-                for j in range(aw):
-                    y1 = j * 16
-                    y2 = y1 + 16
-                    array, partition = self.array_maps[layer][a][i][j]
-                    y[h, w, y1:y2] += self.arrays[array].reduce()
+                pe = self.pe_maps[layer][a][i]
+                y[h, w, :] += self.pe[pe].reduce()
 
         y = y + b
         y = y * (y > 0)
@@ -116,40 +108,25 @@ class Network:
 
 ##############################################
 
-'''
-array level design questions:
-1) A) start with N arrays B) create a kernel and then figure out duplication 
-2) A) init an array with list of weights B) or program them in.
-
-> we are doing neither right now.
-'''
-
 class Array:
     def __init__(self, weights, params):
-        self.rec_count = 0
-        self.send_count = 0
-    
         self.weights = weights
         self.params = params
         self.shift = 2 ** np.array(range(self.params['bpw']))
-
         self.y = 0
 
-    def dot(self, partition, x, x_bit):
+    def dot(self, x, x_bit):
         assert (np.all( (x == 0) + (x == 1) ))
-        self.rec_count += 1 # np.prod(np.shape(x))
         pprod = x @ self.weights[0:len(x), :]
         pprod = np.reshape(pprod, (-1, self.params['bpw'])) @ self.shift
         pprod = np.left_shift(pprod.astype(int), x_bit)
         offset = 128 * np.sum(np.left_shift(x, x_bit))
         self.y += (pprod - offset)
-        # self.send_count += 1 # np.prod(np.shape(y))
-        # return pprod - offset
         cycles = int(np.ceil(np.count_nonzero(x) / self.params['adc']))
+        cycles = cycles * 8 # 8 (COL / ADC)
         return cycles
 
     def reduce(self):
-        self.send_count += 1 # np.prod(np.shape(self.y))
         ret = self.y 
         self.y = 0
         return ret
@@ -164,15 +141,33 @@ class Array:
 ##############################################
 
 class PE:
-    def __init__(self, arrays, params):
-        pass
+    def __init__(self, arrays):
+        self.arrays = arrays
+        self.rec_count = 0
+        self.send_count = 0
 
-    def dot(self, partition, x, x_bit):
-        pass
+    def dot(self, x, x_bit):
+        self.rec_count += len(x)
+    
+        max_cycles = 0
+        for array in self.arrays:
+            cycles = array.dot(x=x, x_bit=x_bit)
+            max_cycles = max(max_cycles, cycles)
+            
+        return max_cycles
 
     def reduce(self):
-        pass
-
+        y_shape = 16 * len(self.arrays)
+        self.send_count += y_shape
+    
+        y = np.zeros(shape=y_shape)
+        for array in range(len(self.arrays)):
+            s = 16 * array
+            e = s + 16
+            y[s:e] = self.arrays[array].reduce()
+            
+        return y
+        
 ##############################################
 
 class Model:
@@ -207,8 +202,8 @@ class Model:
             nmac += self.layers[layer].nmac
             weights.append(self.layers[layer].cut(params=params))
 
-        arrays = []
-        array_maps = []
+        pe = []
+        pe_maps = []
         for layer in range(num_layers):
             p = self.layers[layer].nmac / nmac
             if (layer == 0):
@@ -218,21 +213,20 @@ class Model:
             ndup = int(ndup)
             
             nwl, _, nbl, _ = np.shape(weights[layer])
-            array_map = np.zeros(shape=(ndup, nwl, nbl, 2), dtype=np.int32) 
+            pe_map = np.zeros(shape=(ndup, nwl), dtype=np.int32) 
             
             for dup in range(ndup):
                 for wl in range(nwl):
+                    arrays = []
                     for bl in range(nbl):
                         arrays.append(Array(weights=weights[layer][wl, :, bl, :], params=params))
-                        array_map[dup][wl][bl] = np.array([len(arrays) - 1, 0])
 
-            array_maps.append(array_map)
-            
-        for layer in range(num_layers):
-            self.layers[layer].set_arrays(arrays)
-            self.layers[layer].set_array_maps(array_maps[layer])
+                    pe.append(PE(arrays=arrays))
+                    pe_map[dup][wl] = len(pe) - 1
+
+            pe_maps.append(pe_map)
                     
-        return arrays, array_maps
+        return pe, pe_maps
                     
 ##############################################
 
@@ -295,14 +289,6 @@ class Conv(Layer):
             self.w = np.random.choice(a=values, size=self.filter_size, replace=True).astype(int)
             self.b = np.zeros(shape=self.fn).astype(int)
             self.q = 200
-        
-    ##############################
-        
-    def set_arrays(self, arrays):
-        self.arrays = arrays
-
-    def set_array_maps(self, array_maps):
-        self.array_maps = array_maps
 
     ##############################
 

@@ -51,8 +51,8 @@ Conv(input_size=(8,8,256), filter_size=(3,3,256,256), stride=2, pad1=1, pad2=1, 
 ]
 
 model = Model(layers=layers)
-arrays, array_maps = model.cut(params=params)
-network = Network(ops=model.ops(), arrays=arrays, array_maps=array_maps)
+pe, pe_maps = model.cut(params=params)
+network = Network(ops=model.ops(), pe=pe, pe_maps=pe_maps)
 
 ####
 
@@ -70,11 +70,11 @@ assert (np.all(np.array(y) == np.array(y_ref)))
 total_send = 0
 total_rec = 0
 
-for array in range(len(layers[0].arrays)):
-    total_send += layers[0].arrays[array].send_count
-    total_rec += layers[0].arrays[array].rec_count
+for pe in network.pe:
+    total_send += pe.send_count
+    total_rec += pe.rec_count
 
-print ('total array:', len(layers[0].arrays))
+print ('total array:', len(network.pe))
 print (total_send, total_rec, cycles)
 
 ####
