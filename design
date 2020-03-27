@@ -465,19 +465,16 @@ so im thinking there are two ways to go:
 
 > distributed conv
 > duplicate weights
-
-> 2048 arrays = 128 PE * 16 Arrays
+  > 2048 arrays = 128 PE * 16 Arrays
 
 ----
 
 okay we sorta did that ^
-now what ? 
-
-let
-
-----
+now what ?
 
 cycle level accuracy ? 
+> so this means we have to do pim right 
+> 
 
 ----
 
