@@ -152,34 +152,34 @@ class Model:
 
     def cut(self, params):
         num_layers = len(self.layers)
+        
+        nmac = 0
+        weights = []
+        for layer in range(num_layers):
+            nmac += self.layers[layer].nmac
+            weights.append(self.layers[layer].cut(params=params))
 
         arrays = []
         array_maps = []
         for layer in range(num_layers):
-            weights = self.layers[layer].cut(params=params)
-            nwl, _, nbl, _ = np.shape(weights)
-            array_map = np.zeros(shape=(nwl, nbl, 2), dtype=np.int32) 
-            for wl in range(nwl):
-                for bl in range(nbl):
-                    arrays.append(Array(weights=weights[wl, :, bl, :], params=params))
-                    array_map[wl][bl] = np.array([len(arrays) - 1, 0])
+            p = self.layers[layer].nmac / nmac
+            ndup = p * (2048 * 128 * 128) / np.prod(np.shape(self.layers[layer].cut(params=params)))
+            ndup = int(ndup)
+            
+            nwl, _, nbl, _ = np.shape(weights[layer])
+            array_map = np.zeros(shape=(ndup, nwl, nbl, 2), dtype=np.int32) 
+            
+            for dup in range(ndup):
+                for wl in range(nwl):
+                    for bl in range(nbl):
+                        arrays.append(Array(weights=weights[layer][wl, :, bl, :], params=params))
+                        array_map[dup][wl][bl] = np.array([len(arrays) - 1, 0])
 
             array_maps.append(array_map)
             
         for layer in range(num_layers):
             self.layers[layer].set_arrays(arrays)
             self.layers[layer].set_array_maps(array_maps[layer])
-           
-        nmac = 0
-        for layer in range(num_layers):
-            nmac += self.layers[layer].nmac
-
-        # definitely better ways to calculate this.
-        # like compute 1 at a time, then re-evaluate. so we dont lose 6 rounding errors. 
-        for layer in range(num_layers):
-            p = self.layers[layer].nmac / nmac
-            factor = p * (2048 * 128 * 128) / np.prod(np.shape(self.layers[layer].cut(params=params)))
-            print (np.floor(factor))
             
         return arrays, array_maps
                     
@@ -278,7 +278,7 @@ class Conv(Layer):
             for w in range(Wo):
                 patch = np.reshape(x[h*self.s:(h*self.s+self.fh), w*self.s:(w*self.s+self.fw), :], -1)
                 
-                ah, aw, _ = np.shape(self.array_maps)
+                ad, ah, aw, _ = np.shape(self.array_maps)
                 for i in range(ah):
                     for j in range(aw):
                         x1 = i * 128
@@ -289,7 +289,7 @@ class Conv(Layer):
 
                         # print (x1, x2, y1, y2)
 
-                        array, partition = self.array_maps[i][j]
+                        array, partition = self.array_maps[0][i][j]
                         y[h, w, y1:y2] += self.arrays[array].dot(partition, patch[x1:x2])
 
 
