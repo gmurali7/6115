@@ -49,16 +49,17 @@ class Network:
             
             for i in range(ah):
                 for j in range(aw):
-                    x1 = i * 128
-                    x2 = min(x1 + 128, len(patch))
-                    
-                    y1 = j * 16
-                    y2 = y1 + 16
+                    for bit in range(8):
+                        x1 = i * 128
+                        x2 = min(x1 + 128, len(patch))
+                        
+                        y1 = j * 16
+                        y2 = y1 + 16
 
-                    # print (x1, x2, y1, y2)
+                        xb = np.bitwise_and(np.right_shift(patch[x1:x2].astype(int), bit), 1)
 
-                    array, partition = self.array_maps[layer][a][i][j]
-                    y[h, w, y1:y2] += self.arrays[array].dot(partition, patch[x1:x2])
+                        array, partition = self.array_maps[layer][a][i][j]
+                        y[h, w, y1:y2] += self.arrays[array].dot(partition, xb, bit)
 
         y = y + b
         y = y * (y > 0)
@@ -123,13 +124,17 @@ class Array:
         self.params = params
         self.shift = 2 ** np.array(range(self.params['bpw']))
 
-    def dot(self, partition, x):
+        self.y = 0
+
+    def dot(self, partition, x, x_bit):
+        assert (np.all( (x == 0) + (x == 1) ))
         self.rec_count += 1 # np.prod(np.shape(x))
-        y = x @ self.weights[0:len(x), :]
-        y = np.reshape(y, (-1, self.params['bpw'])) @ self.shift
-        y -= 128 * np.sum(x)
+        pprod = x @ self.weights[0:len(x), :]
+        pprod = np.reshape(pprod, (-1, self.params['bpw'])) @ self.shift
+        pprod = np.left_shift(pprod.astype(int), x_bit)
+        pprod -= 128 * np.sum(np.left_shift(x, x_bit))
         self.send_count += 1 # np.prod(np.shape(y))
-        return y
+        return pprod
 
     '''
     def reduce(self):
