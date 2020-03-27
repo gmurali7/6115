@@ -274,23 +274,26 @@ class Conv(Layer):
         x = np.pad(array=x, pad_width=[[self.p1,self.p2], [self.p1,self.p2], [0,0]], mode='constant')
         y = np.zeros(shape=(Ho, Wo, Co))
 
-        for h in range(Ho):        
-            for w in range(Wo):
-                patch = np.reshape(x[h*self.s:(h*self.s+self.fh), w*self.s:(w*self.s+self.fw), :], -1)
-                
-                ad, ah, aw, _ = np.shape(self.array_maps)
-                for i in range(ah):
-                    for j in range(aw):
-                        x1 = i * 128
-                        x2 = min(x1 + 128, len(patch))
-                        
-                        y1 = j * 16
-                        y2 = y1 + 16
+        ad, ah, aw, _ = np.shape(self.array_maps)
 
-                        # print (x1, x2, y1, y2)
+        for pix in range(Ho * Wo):
+            h = pix // Wo
+            w = pix % Wo
+            a = pix % ad
+            patch = np.reshape(x[h*self.s:(h*self.s+self.fh), w*self.s:(w*self.s+self.fw), :], -1)
+            
+            for i in range(ah):
+                for j in range(aw):
+                    x1 = i * 128
+                    x2 = min(x1 + 128, len(patch))
+                    
+                    y1 = j * 16
+                    y2 = y1 + 16
 
-                        array, partition = self.array_maps[0][i][j]
-                        y[h, w, y1:y2] += self.arrays[array].dot(partition, patch[x1:x2])
+                    # print (x1, x2, y1, y2)
+
+                    array, partition = self.array_maps[a][i][j]
+                    y[h, w, y1:y2] += self.arrays[array].dot(partition, patch[x1:x2])
 
 
         y = y + self.b
