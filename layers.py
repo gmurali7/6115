@@ -163,6 +163,18 @@ class Array:
 
 ##############################################
 
+class PE:
+    def __init__(self, arrays, params):
+        pass
+
+    def dot(self, partition, x, x_bit):
+        pass
+
+    def reduce(self):
+        pass
+
+##############################################
+
 class Model:
     def __init__(self, layers):
         self.layers = layers
@@ -219,7 +231,7 @@ class Model:
         for layer in range(num_layers):
             self.layers[layer].set_arrays(arrays)
             self.layers[layer].set_array_maps(array_maps[layer])
-            
+                    
         return arrays, array_maps
                     
 ##############################################

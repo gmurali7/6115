@@ -474,14 +474,14 @@ now what ?
 
 cycle level accuracy ? 
 > x bit sharing
+  > any reason not to group arrays together ? 
+    > ArrayGroup ? 
   
 > adc < col
   > 8 adc / col
 
 > pim dosnt do a full 128 bits/cycle.
   > assume 0 skipping and just return np.count_ones(x) / 8
-
-
 
 ----
 
