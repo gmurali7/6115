@@ -25,7 +25,13 @@ class Network:
             for layer in range(min(example + 1, self.num_layers)):
                 print ('%d: layer: %d example: %d' % (example, layer, example - layer))
                 y[example - layer] = self.conv(layer=layer, x=y[example - layer])
-                
+        
+        for last_example in range(1, self.num_layers):
+            for layer in range(last_example, min(num_examples + last_example, self.num_layers)):
+                example = num_examples - layer + last_example - 1
+                print ('%d: layer: %d example: %d' % (last_example, layer, example))
+                y[example] = self.conv(layer=layer, x=y[example])
+        
         return y
         
     def conv(self, x, layer):

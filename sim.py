@@ -63,13 +63,13 @@ y = network.forward(x=x)
 y_ref = model.forward(x=x)
 # print (np.shape(y), np.shape(y_ref))
 # print (y[0][15][15], y_ref[0][15][15].flatten()[0:40])
-assert (np.all(y[0] == y_ref[0]))
+assert (np.all(np.array(y) == np.array(y_ref)))
     
 ####
-
+'''
 for array in range(len(layers[0].arrays)):
     print (array, layers[0].arrays[array].rec_count, layers[0].arrays[array].send_count)
-
+'''
 
 
 
