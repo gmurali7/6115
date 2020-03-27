@@ -485,6 +485,11 @@ cycle level accuracy ?
 
 ----
 
+okay we added all of these, and SRAM came crashing down lol.
+will it really require this many cycles ? 
+
+----
+
 our contribution might just be :
 > link sizing
 > placement
@@ -495,12 +500,49 @@ our contribution might just be :
 
 ----
 
+128 * 128 / (8 COL/ADC) / (8 WBIT) / (8 XBIT) = 32 MAC / CYCLE best case
+> oh wait they do 2 bit / cell
+> have to double this.
+> and we are not certain what an op is ...
 
+25k arrays * 32 MAC/cycle * 100e6 Hz = 80TOPS
+they claim 20TOPS/W so perhaps it just consumes 4W power ? 
 
+problem is that total ADC energy = 22 * 1e-12 * 25000 * 100e6 = 55 J
 
+----
 
+Table II shows the component parameters of the proposed
+architecture. The energy is given in energy per unit (or module
+and PE) per operation (or bit). For example, the energy of
+ADC is 22.45 pJ/op, it is the energy for all the ADCs in
+one sub-array to process one operation, here the operation
+means once the sub-array is activated and given a vector of
+input pulse, the ADC will get one group of outputs from
+the sub-array. It should be noted that, considering about the
+area overhead, we have grouped the columns and shared every
+8 columns with one ADC. In order to get the outputs of all
+the columns in one sub-array, the ADCs need to work 8 oper-
+ations. Moreover, since the input precision is set to be 8-bit,
+the entire sub-array need to operate 8 times, and meanwhile
+these outputs will be shifted and accumulated. 
 
+In addition,
+in the PE level, the sub-array energy is 25.04 nJ/op, which
+tells the total energy for one single sub-array to do one
+8-bit vector-matrix multiplication (8-bit inputs multiply 8-bit
+weights and accumulate the dot-products). This includes all
+the operations in sub-array level as discussed, such as sharing
+and switching the ADCs among columns and shift-adds for
+high-precision inputs.
 
+----
+
+25.04 * 1e-9 / 8 / 8 * 25000 * 100e6
+nah they dont specify a clock ...
+we cud setup some equations to solve this tho.
+
+----
 
 
 
