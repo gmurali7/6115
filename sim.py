@@ -40,14 +40,14 @@ weights = np.load('cifar10_weights.npy', allow_pickle=True).item()
 ####
 
 layers = [
-Conv(input_size=(32,32,3),  filter_size=(3,3,3,64),  stride=1, pad1=1, pad2=1, weights=None),
-Conv(input_size=(32,32,64), filter_size=(3,3,64,64), stride=2, pad1=1, pad2=1, weights=None),
+Conv(input_size=(32,32,3),  filter_size=(3,3,3,64),  stride=1, pad1=1, pad2=1, weights=weights[0]),
+Conv(input_size=(32,32,64), filter_size=(3,3,64,64), stride=2, pad1=1, pad2=1, weights=weights[1]),
 
-Conv(input_size=(16,16,64), filter_size=(3,3,64,128), stride=1, pad1=1, pad2=1, weights=None),
-Conv(input_size=(16,16,128), filter_size=(3,3,128,128), stride=2, pad1=1, pad2=1, weights=None),
+Conv(input_size=(16,16,64), filter_size=(3,3,64,128), stride=1, pad1=1, pad2=1, weights=weights[2]),
+Conv(input_size=(16,16,128), filter_size=(3,3,128,128), stride=2, pad1=1, pad2=1, weights=weights[3]),
 
-Conv(input_size=(8,8,128), filter_size=(3,3,128,256), stride=1, pad1=1, pad2=1, weights=None),
-Conv(input_size=(8,8,256), filter_size=(3,3,256,256), stride=2, pad1=1, pad2=1, weights=None),
+Conv(input_size=(8,8,128), filter_size=(3,3,128,256), stride=1, pad1=1, pad2=1, weights=weights[4]),
+Conv(input_size=(8,8,256), filter_size=(3,3,256,256), stride=2, pad1=1, pad2=1, weights=weights[5]),
 ]
 
 model = Model(layers=layers)
@@ -70,12 +70,11 @@ assert (np.all(np.array(y) == np.array(y_ref)))
 total_send = 0
 total_rec = 0
 
-print (len(layers[0].arrays))
-
 for array in range(len(layers[0].arrays)):
     total_send += layers[0].arrays[array].send_count
     total_rec += layers[0].arrays[array].rec_count
 
+print ('total array:', len(layers[0].arrays))
 print (total_send, total_rec, cycles)
 
 ####

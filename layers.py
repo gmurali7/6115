@@ -58,7 +58,7 @@ class Network:
                 
         x = np.pad(array=x, pad_width=[[P1,P2], [P1,P2], [0,0]], mode='constant')
         y = np.zeros(shape=(Ho, Wo, Co))
-        cycles = 0
+        total_cycles = 0
 
         ad, ah, aw, _ = np.shape(self.array_maps[layer])
         for pix in range(Ho * Wo):
@@ -68,7 +68,7 @@ class Network:
             patch = np.reshape(x[h*S:(h*S+K), w*S:(w*S+K), :], -1)
             
             for bit in range(8):
-                cycles += (a == 0)
+                max_cycles = 0
                 for i in range(ah):
                     for j in range(aw):
                         x1 = i * 128
@@ -80,7 +80,11 @@ class Network:
                         xb = np.bitwise_and(np.right_shift(patch[x1:x2].astype(int), bit), 1)
 
                         array, partition = self.array_maps[layer][a][i][j]
-                        self.arrays[array].dot(partition, xb, bit)
+                        cycles = self.arrays[array].dot(partition, xb, bit)
+                        max_cycles = max(max_cycles, cycles)
+
+                if (a == 0): 
+                    total_cycles += max_cycles
 
             for i in range(ah):
                 for j in range(aw):
@@ -94,7 +98,7 @@ class Network:
         y = y.astype(int)
         y = y // q 
         y = np.clip(y, 0, 127)
-        return y, cycles
+        return y, total_cycles
 
     def reduce(self):
         reduce_steps = np.log2(self.num_tiles)
@@ -141,6 +145,8 @@ class Array:
         self.y += (pprod - offset)
         # self.send_count += 1 # np.prod(np.shape(y))
         # return pprod - offset
+        cycles = int(np.ceil(np.count_nonzero(x) / self.params['adc']))
+        return cycles
 
     def reduce(self):
         self.send_count += 1 # np.prod(np.shape(self.y))
@@ -238,7 +244,7 @@ class Conv(Layer):
 
         self.input_size = input_size
         self.xh, self.xw, self.xc = self.input_size
-                
+
         self.filter_size = filter_size
         self.fh, self.fw, self.fc, self.fn = self.filter_size
         
@@ -259,7 +265,7 @@ class Conv(Layer):
         maxval = 2 ** (8 - 1)
         minval = -1 * maxval
         if weights is not None:
-            self.w, self.b, self.q = weights
+            self.w, self.b, self.q = weights['f'], weights['b'], weights['q']
             assert (np.all(self.w >= minval))
             assert (np.all(self.w <= maxval))
             # check shape
