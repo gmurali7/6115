@@ -591,28 +591,72 @@ so we dont have a great idea of what to do yet, BUT still several more things to
 
 ----
 
+Fig. 6 (b) shows a single tile, which contains multiple PEs
+with routers and L2 buffer. Within a tile, the routers make
+it possible to communicate among PEs and transfer partial
+sums from PEs to accumulation units. In the novel mapping,
+the number of PEs equal to the kernel size, e.g. 9 PEs for
+3×3 kernel. Fig. 6 (c) shows a PE which contains 16 sub-
+arrays and L1 buffer, where the 16 sub-arrays could support
+enough storage for the deepest layer in ResNet (kernel depth
+is 512), the intra-PE accumulation units are used to sum up
+partial sums from sub-arrays, the output buffer will collect the
+accumulated partial sums and wait to be sent out by inter-PE
+routers.
 
+> to find these sorta things, zoom out and look at sections and figures.
 
+----
 
+alright so we have 3 nodes:
+1) adder tree
+2) memory
+3) arrays
 
+> looks a lot like our RTL design lol.
 
+----
 
+> so i think we need to add an adder module  
+> think its fine to accumulate inside the PE 
+but between PEs think we need adder trees.
 
+AND that is only between non-duplicated PE.
 
+shud we fix the size of these PEs to be 16 ? 
+then we have to stick a bunch of these 4s together ? 
 
+layer nwl
+0 1
+1 5
+2 5
+3 9
+4 9
+5 18
 
+... yeah dont really feel like it lol.
 
+-----
 
+summing just occurs of [KH, KW, KC]
+> WE HAVE NO INTRA-PE SUMMING.
+> because we put things together by sharing X input.
+> if we had arbitrary 16 array PE size, then we wud sum things together for smaller filters, where we could store more than 1 row accross if u see what i mean.
 
+okay, so we want to replace this at PE level.
 
+for i in range(ah):
+    pe = self.pe_maps[layer][a][i]
+    y[h, w, :] += self.pe[pe].reduce()
+    
+so for this, i think we want to create a module called adder tree that spans all of them.
+> adder tree (n_pe, n_word)
 
+-----
 
+yeah really think the big thing will be different operating speeds of the PEs.
 
-
-
-
-
-
+-----
 
 
 
