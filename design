@@ -544,6 +544,50 @@ we cud setup some equations to solve this tho.
 
 ----
 
+our PE are wide, not tall. so they all require the same banwidth right ? 
+
+each PE in our design requires
+128 WLs * 8 XBIT / (8 XBIT * 8 COL) = 16 bit/cycle
+16b * 275 PE = 136 32b SRAMs ...
+scale up by 10 = 1360 SRAM.
+0.05 * 1360 = 68mm2 of SRAM ... still quite a bit ...
+
+Each of their PE = 4Kb @ 128 bit width
+which they claim is 0.0073 mm2 ...
+0.044 ... wtf ??
+
+----
+
+> were going to email.
+> topology
+> link scaling
+> actually sending packets
+
+----
+
+why do we have 2k array, 275 pe ? 
+why do we ever have a 16 ? 
+16 * 128 / 8 = 256. oh lol.
+
+2044 / 275 = 7.4
+still seems kinda high ...
+nah actually there is (4,8,16)
+
+----
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
