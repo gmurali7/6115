@@ -18,4 +18,6 @@ can we lower link frequency because pim requires less bandwidth
 run PIM units and interconnects at different frequency
 what do we get for this ? 
 
+-----
 
+dealing with synchronization of layers moving different speed, x/w, w profiling causing different speeds

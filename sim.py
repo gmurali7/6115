@@ -32,6 +32,7 @@ params = {
 'wl': 128,
 'bl': 128,
 'offset': 128,
+'rpa': 128
 }
 
 weights = np.load('cifar10_weights.npy', allow_pickle=True).item()
@@ -39,34 +40,62 @@ weights = np.load('cifar10_weights.npy', allow_pickle=True).item()
 ####
 
 layers = [
-Conv(input_size=(32,32,3),  filter_size=(3,3,3,64),  stride=1, pad1=1, pad2=1, weights=None, params=params),
-Conv(input_size=(32,32,64), filter_size=(3,3,64,64), stride=2, pad1=1, pad2=1, weights=None, params=params),
+Conv(input_size=(32,32,3),  filter_size=(3,3,3,64),  stride=1, pad1=1, pad2=1, weights=weights[0]),
+Conv(input_size=(32,32,64), filter_size=(3,3,64,64), stride=2, pad1=1, pad2=1, weights=weights[1]),
 
-Conv(input_size=(16,16,64), filter_size=(3,3,64,128), stride=1, pad1=1, pad2=1, weights=None, params=params),
-Conv(input_size=(16,16,128), filter_size=(3,3,128,128), stride=2, pad1=1, pad2=1, weights=None, params=params),
+Conv(input_size=(16,16,64), filter_size=(3,3,64,128), stride=1, pad1=1, pad2=1, weights=weights[2]),
+Conv(input_size=(16,16,128), filter_size=(3,3,128,128), stride=2, pad1=1, pad2=1, weights=weights[3]),
+
+Conv(input_size=(8,8,128), filter_size=(3,3,128,256), stride=1, pad1=1, pad2=1, weights=weights[4]),
+Conv(input_size=(8,8,256), filter_size=(3,3,256,256), stride=2, pad1=1, pad2=1, weights=weights[5]),
 ]
 
 model = Model(layers=layers)
-network = model.cut(num_tiles=16)
+pe, pe_maps = model.cut(params=params)
+network = Network(ops=model.ops(), pe=pe, pe_maps=pe_maps)
 
 ####
 
-tests = [
-(1, (32, 32), network)
-]
-
-####
-
-for test in tests:
-    num_example, input_shape, network = test
-    x = init_x(num_example, input_shape, 0, 127)
-    assert (np.min(x) >= 0 and np.max(x) <= 127)
-    y = network.forward(x=x)
-    y_ref = model.forward(x=x)
-    print (np.shape(y), np.shape(y_ref))
-    assert (np.all(y[0] == y_ref[0]))
+x = init_x(1, (32, 32), 0, 127)
+assert (np.min(x) >= 0 and np.max(x) <= 127)
+y, cycles = network.forward(x=x)
+# y = model.forward_dist(x=x)
+y_ref = model.forward(x=x)
+# print (np.shape(y), np.shape(y_ref))
+# print (y[0][15][15], y_ref[0][15][15].flatten()[0:40])
+assert (np.all(np.array(y) == np.array(y_ref)))
     
 ####
+
+total_send = 0
+total_rec = 0
+total_array = 0
+
+for pe in network.pe:
+    total_send += pe.send_count
+    total_rec += pe.rec_count
+    total_array += len(pe.arrays)
+    # print (len(pe.arrays))
+
+print ('total pe:', len(network.pe))
+print ('total array:', total_array)
+print (total_send, total_rec, cycles)
+
+####
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

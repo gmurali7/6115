@@ -9,47 +9,88 @@ from pim import *
 ##############################################
 
 class Network:
-    def __init__(self, tiles, num_layers):
-        self.tiles = tiles
-        self.num_tiles = len(tiles)
-        self.num_layers = num_layers
+    def __init__(self, ops, pe, pe_maps):
+        self.ops = ops
+        self.pe = pe
+        self.pe_maps = pe_maps
+        self.num_layers = len(pe_maps)
 
     def forward(self, x):
         num_examples, _, _, _ = np.shape(x)
         
+        total_cycles = 0        
         y = [None] * num_examples
+        
         for example in range(num_examples):
+            max_cycles = 0
             y[example] = x[example]
-            for layer in range(self.num_layers):
-
-                h, w, c = np.shape(y[example])
+            for layer in range(min(example + 1, self.num_layers)):
+                # print ('%d: layer: %d example: %d' % (example, layer, example - layer))
+                y[example - layer], cycles = self.conv(layer=layer, x=y[example - layer])
+                max_cycles = max(max_cycles, cycles)
+                print (layer, cycles)
                 
-                ################################
+            total_cycles += max_cycles
+        
+        for last_example in range(1, self.num_layers):
+            max_cycles = 0
+            for layer in range(last_example, min(num_examples + last_example, self.num_layers)):
+                example = num_examples - layer + last_example - 1
+                # print ('%d: layer: %d example: %d' % (last_example, layer, example))
+                y[example], cycles = self.conv(layer=layer, x=y[example])
+                max_cycles = max(max_cycles, cycles)
+                print (layer, cycles)
+
+            total_cycles += max_cycles
+
+        return y, total_cycles
+        
+    def conv(self, x, layer):
+        op = self.ops[layer]
+        b, q = op['b'], op['q']
+        H, W, C = op['h'], op['w'], op['c']
+        K, N = op['k'], op['n']
+        S, P1, P2 = op['s'], op['p1'], op['p2']
+        
+        Ho = conv_output_length(H, K, 'same', S)
+        Wo = Ho
+        Co = N
                 
-                if c <= 3:
-                    y[example] = self.tiles[0].forward(layer=layer, x=y[example])
-                else:
-                    assert ((c % self.num_tiles) == 0)
-                    cut_c = c // self.num_tiles
+        x = np.pad(array=x, pad_width=[[P1,P2], [P1,P2], [0,0]], mode='constant')
+        y = np.zeros(shape=(Ho, Wo, Co))
+        total_cycles = 0
 
-                    for tile in range(self.num_tiles):
-                        # we need to move quantization outside of layer.
-                        c1 = tile * cut_c
-                        c2 = (tile + 1) * cut_c
-                        self.tiles[tile].forward(layer=layer, x=y[example][:, :, c1:c2])
+        ad, ah = np.shape(self.pe_maps[layer])
+        for pix in range(Ho * Wo):
+            h = pix // Wo
+            w = pix % Wo
+            a = pix % ad
+            patch = np.reshape(x[h*S:(h*S+K), w*S:(w*S+K), :], -1)
+            
+            for bit in range(8):
+                max_cycles = 0
+                for i in range(ah):
+                    x1 = i * 128
+                    x2 = min(x1 + 128, len(patch))
+                    xb = np.bitwise_and(np.right_shift(patch[x1:x2].astype(int), bit), 1)
 
-                    y[example] = self.reduce()
-                
-                ################################
+                    pe = self.pe_maps[layer][a][i]
+                    cycles = self.pe[pe].dot(xb, bit)
+                    max_cycles = max(max_cycles, cycles)
 
-                y[example] += self.tiles[0].layers[layer].b
-                y[example] *= (y[example] > 0)
-                y[example] = y[example] // self.tiles[0].layers[layer].q 
-                y[example] = np.clip(y[example], 0, 127)
-                y[example] = y[example].astype(int)
+                if (a == 0): 
+                    total_cycles += max_cycles
 
-        return y
-                
+            for i in range(ah):
+                pe = self.pe_maps[layer][a][i]
+                y[h, w, :] += self.pe[pe].reduce()
+
+        y = y + b
+        y = y * (y > 0)
+        y = y.astype(int)
+        y = y // q 
+        y = np.clip(y, 0, 127)
+        return y, total_cycles
 
     def reduce(self):
         reduce_steps = np.log2(self.num_tiles)
@@ -64,53 +105,69 @@ class Network:
                 self.tiles[accum_tile].accum(self.tiles[reduce_tile].reduce())
                 
         return self.tiles[0].reduce()
-        
+
 ##############################################
 
-class Tile:
-    def __init__(self, layers):
-        self.layers = layers
-        self.rec_count = 0
-        self.send_count = 0
+class Array:
+    def __init__(self, weights, params):
+        self.weights = weights
+        self.params = params
+        self.shift = 2 ** np.array(range(self.params['bpw']))
         self.y = 0
 
-    def forward(self, layer, x):
-        self.rec_count += np.prod(np.shape(x))
-        self.y = self.layers[layer].forward(x)
-        return self.y
-                
+    def dot(self, x, x_bit):
+        assert (np.all( (x == 0) + (x == 1) ))
+        pprod = x @ self.weights[0:len(x), :]
+        pprod = np.reshape(pprod, (-1, self.params['bpw'])) @ self.shift
+        pprod = np.left_shift(pprod.astype(int), x_bit)
+        offset = 128 * np.sum(np.left_shift(x, x_bit))
+        self.y += (pprod - offset)
+        cycles = int(np.ceil(np.count_nonzero(x) / self.params['adc']))
+        cycles = cycles * 8 # 8 (COL / ADC)
+        return cycles
+
     def reduce(self):
-        self.send_count += np.prod(np.shape(self.y))
-        return self.y
+        ret = self.y 
+        self.y = 0
+        return ret
         
+    '''
     def accum(self, x):
         self.rec_count += np.prod(np.shape(x))
         self.y += x
         return self.y
+    '''
 
 ##############################################
-'''
+
 class PE:
-    def __init__(self, weights):
-        self.layers = layers
+    def __init__(self, arrays):
+        self.arrays = arrays
         self.rec_count = 0
         self.send_count = 0
-        self.y = 0
 
-    def forward(self, layer, x):
-        self.rec_count += np.prod(np.shape(x))
-        self.y = self.layers[layer].forward(x)
-        return self.y
-                
+    def dot(self, x, x_bit):
+        self.rec_count += len(x)
+    
+        max_cycles = 0
+        for array in self.arrays:
+            cycles = array.dot(x=x, x_bit=x_bit)
+            max_cycles = max(max_cycles, cycles)
+            
+        return max_cycles
+
     def reduce(self):
-        self.send_count += np.prod(np.shape(self.y))
-        return self.y
+        y_shape = 16 * len(self.arrays)
+        self.send_count += y_shape
+    
+        y = np.zeros(shape=y_shape)
+        for array in range(len(self.arrays)):
+            s = 16 * array
+            e = s + 16
+            y[s:e] = self.arrays[array].reduce()
+            
+        return y
         
-    def accum(self, x):
-        self.rec_count += np.prod(np.shape(x))
-        self.y += x
-        return self.y
-'''
 ##############################################
 
 class Model:
@@ -125,25 +182,52 @@ class Model:
         for example in range(num_examples):
             y[example] = x[example]
             for layer in range(num_layers):
-                y[example] = self.layers[layer].forward_ref(x=y[example])
+                y[example] = self.layers[layer].forward(x=y[example])
 
         return y
 
-    def cut(self, num_tiles):
+    def ops(self):
+        ret = []
+        for layer in self.layers:
+            ret.append(layer.op())
+
+        return ret
+
+    def cut(self, params):
         num_layers = len(self.layers)
-        layers = [[None for layer in range(num_layers)] for tile in range(num_tiles)]
-
+        
+        nmac = 0
+        weights = []
         for layer in range(num_layers):
-            cuts = self.layers[layer].cut(num_tiles=num_tiles)
-            for tile in range(num_tiles):
-                layers[tile][layer] = cuts[tile]
+            nmac += self.layers[layer].nmac
+            weights.append(self.layers[layer].cut(params=params))
 
-        tiles = [None] * num_tiles
-        for tile in range(num_tiles):
-            tiles[tile] = Tile(layers=layers[tile])
+        pe = []
+        pe_maps = []
+        for layer in range(num_layers):
+            p = self.layers[layer].nmac / nmac
+            if (layer == 0):
+                ndup = p * (2048 * 128 * 128) / np.prod(np.shape(self.layers[layer].cut(params=params))) * (128 / 27)
+            else:
+                ndup = p * (2048 * 128 * 128) / np.prod(np.shape(self.layers[layer].cut(params=params)))
+            ndup = int(ndup)
+            
+            nwl, _, nbl, _ = np.shape(weights[layer])
+            pe_map = np.zeros(shape=(ndup, nwl), dtype=np.int32) 
+            
+            for dup in range(ndup):
+                for wl in range(nwl):
+                    arrays = []
+                    for bl in range(nbl):
+                        arrays.append(Array(weights=weights[layer][wl, :, bl, :], params=params))
 
-        return Network(tiles=tiles, num_layers=num_layers)
+                    pe.append(PE(arrays=arrays))
+                    pe_map[dup][wl] = len(pe) - 1
 
+            pe_maps.append(pe_map)
+                    
+        return pe, pe_maps
+                    
 ##############################################
 
 class Layer:
@@ -153,42 +237,41 @@ class Layer:
     def forward(self, x):   
         assert(False)
         
-    def forward_ref(self, x):   
-        assert(False)
-
     def rpr(self):
         assert(False)
 
-    def cut(self, num_tiles):
+    def cut(self, params):
         assert (False)
         
 ##############################################
 
 class Conv(Layer):
-    def __init__(self, input_size, filter_size, stride, pad1, pad2, weights, params):
+    def __init__(self, input_size, filter_size, stride, pad1, pad2, weights):
 
         self.input_size = input_size
-        self.h, self.w, self.c = self.input_size
-                
+        self.xh, self.xw, self.xc = self.input_size
+
         self.filter_size = filter_size
         self.fh, self.fw, self.fc, self.fn = self.filter_size
         
-        assert(self.c == self.fc)
+        assert(self.xc == self.fc)
         assert(self.fh == self.fw)
 
         self.s = stride
         self.p1 = pad1
         self.p2 = pad2
         
-        self.y_h = (self.h - self.fh + self.s + self.p1 + self.p2) / self.s
-        self.y_w = (self.w - self.fw + self.s + self.p1 + self.p2) / self.s
-                
-        self.params = params
+        self.yh = (self.xh - self.fh + self.s + self.p1 + self.p2) / self.s
+        self.yw = (self.xw - self.fw + self.s + self.p1 + self.p2) / self.s
+        
+        self.nmac = (self.fh * self.fw * self.fc * self.fn) * (self.yh * self.yw)
+        # self.cells = (self.fh * self.fw * self.fc * self.fn) * 8
+        # self.cells = np.prod(np.shape(self.wb)) # not the above.
 
         maxval = 2 ** (8 - 1)
         minval = -1 * maxval
         if weights is not None:
-            self.w, self.b, self.q = weights
+            self.w, self.b, self.q = weights['f'], weights['b'], weights['q']
             assert (np.all(self.w >= minval))
             assert (np.all(self.w <= maxval))
             # check shape
@@ -206,43 +289,70 @@ class Conv(Layer):
             self.w = np.random.choice(a=values, size=self.filter_size, replace=True).astype(int)
             self.b = np.zeros(shape=self.fn).astype(int)
             self.q = 200
-            
-        w_offset = self.w + params['offset']
-        wb = []
-        for bit in range(params['bpw']):
-            wb.append(np.bitwise_and(np.right_shift(w_offset, bit), 1))
-        self.wb = np.stack(wb, axis=-1)
+
+    ##############################
 
     def forward(self, x):
-        y = pim_conv(x=x, f=self.w, b=self.b, q=self.q, stride=self.s, pad1=self.p1, pad2=self.p2, params=self.params)
+        y = conv(x=x, f=self.w, stride=self.s, pad1=self.p1, pad2=self.p2)
+
+        y = y + self.b
+        y = y * (y > 0)
+        y = y.astype(int)
+        y = y // self.q 
+        y = np.clip(y, 0, 127)
+
         return y
+
+    ##############################
+    
+    def op(self):
+        ret = {'b': self.b, 'q': self.q, 'h': self.xh, 'w': self.xw, 'c': self.xc, 'k': self.fh, 'n': self.fn, 's': self.s, 'p1': self.p1, 'p2': self.p2}
+        return ret
         
-    def forward_ref(self, x):
-        y = conv(x=x, f=self.w, b=self.b, q=self.q, stride=self.s, pad1=self.p1, pad2=self.p2)
-        return y
+    ##############################
 
-    def cut(self, num_tiles):
-        tiles = [None] * num_tiles
-        for tile in range(num_tiles):
-            if self.c <= 3:
-                tiles[0] = self
-            else:
-                assert ((self.c % num_tiles) == 0)
-                cut_c = self.c // num_tiles
-                
-                start = tile * cut_c
-                end = start + cut_c
-                cut_weights = self.w[:, :, start:end, :]
-                
-                tiles[tile] = Conv(input_size=(self.h, self.w, cut_c), 
-                                   filter_size=(self.fh, self.fw, cut_c, self.fn), 
-                                   stride=self.s, 
-                                   pad1=self.p1, 
-                                   pad2=self.p2, 
-                                   weights=(cut_weights, self.b, self.q),
-                                   params=self.params)
+    def cut(self, params):
+        
+        # nrow, nwl, wl, xb = np.shape(x)
+        # nwl, wl, nbl, bl = np.shape(w) 
+        # nrow, ncol = y_shape
 
-        return tiles
+        ########################
+
+        w_offset = self.w + params['offset']
+        w_matrix = np.reshape(w_offset, (self.fh * self.fw * self.fc, self.fn))
+        wb = []
+        for bit in range(params['bpw']):
+            wb.append(np.bitwise_and(np.right_shift(w_matrix, bit), 1))
+        wb = np.stack(wb, axis=-1)
+        
+        ########################
+        
+        nrow, ncol, nbit = np.shape(wb)
+        if (nrow % params['rpa']):
+            zeros = np.zeros(shape=(params['rpa'] - (nrow % params['rpa']), ncol, nbit))
+            wb = np.concatenate((wb, zeros), axis=0)
+
+        nrow, ncol, nbit = np.shape(wb)
+        wb = np.reshape(wb, (-1, params['rpa'], ncol, nbit))
+        
+        ########################
+
+        nwl, wl, ncol, nbit = np.shape(wb)
+        wb = np.reshape(wb, (nwl, params['rpa'], ncol * nbit))
+        
+        nwl, wl, ncol = np.shape(wb)
+        if (ncol % params['bl']):
+            zeros = np.zeros(shape=(nwl, params['rpa'], params['bl'] - (ncol % params['bl'])))
+            wb = np.concatenate((wb, zeros), axis=2)
+
+        wb = np.reshape(wb, (nwl, params['rpa'], -1, params['bl']))
+
+        ########################
+
+        return wb
+        
+        
 
 ##############################################
         

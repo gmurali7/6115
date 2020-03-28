@@ -4,6 +4,18 @@ weight partitioning
 > need to consider HOW MANY arrays you have in the design, this leads to
   1) duplication - you duplicate based on #MAC per layer.
   2) rows per array - this can be computed optimally, but we are just going to hard code it.
-
 > there is NO way to fit ALL layers into a single PE.
+> NEED to pick some partition size within the array -> how you size the fmap packet, don't kill zero skipping.
+  > pad with zeros to make that partition.
+  > for now, all layers will follow same parition, but in future you would want to compute this layer to layer.
+  > paritioning makes this really easy actually, you need some minimum size for partitions.
+  
+> think I really liked about there design was splitting XY dimension of filter
+  > although i dont think it has any advantages. 
+  > 3x3x128 will naturally split accross 9 when we have 128x128 arrays.
+  
+array level design questions:
+1) A) start with N arrays B) create a kernel and then figure out duplication 
+2) A) init an array with list of weights B) or program them in.
 
+> ONLY BIN (PE) THINGS TOGETHER THAN SHARE THE SAME X DATA

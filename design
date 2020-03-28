@@ -441,6 +441,163 @@ so we will hardcod it.
 
 ----
 
+can we use splitting in XY dimension, to prevent weird shapes ? 
+> split XY, 
+> yeah i mean we can just make conv do that. 
+  > but consider case for 3x3x64x64.
+  > we cant satisfy 128 rows if we split the 9 ways, so we end up with less
+  > actually seems to be no reason to me to split XY direction.
+  > just fill it all the way up.
+
+----
+
+okay so now we have done a good job splitting things up BUT we have a problem.
+network cannot do a conv.
+so, i dont think we have a network in the first place.
+well i take that back actually.
+
+the issue with splitting up the way u describe, is then u cant mix layers.
+so im thinking there are two ways to go:
+> collect all arrays in model, then pass them back.
+> or bundle all params into a dictionary and return them from conv.
+
+----
+
+> distributed conv
+> duplicate weights
+  > 2048 arrays = 128 PE * 16 Arrays
+
+----
+
+okay we sorta did that ^
+now what ?
+
+cycle level accuracy ? 
+> x bit sharing
+  > any reason not to group arrays together ? 
+    > ArrayGroup ? 
+  
+> adc < col
+  > 8 adc / col
+
+> pim dosnt do a full 128 bits/cycle.
+  > assume 0 skipping and just return np.count_ones(x) / 8
+
+----
+
+okay we added all of these, and SRAM came crashing down lol.
+will it really require this many cycles ? 
+
+----
+
+our contribution might just be :
+> link sizing
+> placement
+> group sizing 
+> providing bandwidth as a function of (X, W)
+
+> large groups may have small input link, but will still have large output link ...
+
+----
+
+128 * 128 / (8 COL/ADC) / (8 WBIT) / (8 XBIT) = 32 MAC / CYCLE best case
+> oh wait they do 2 bit / cell
+> have to double this.
+> and we are not certain what an op is ...
+
+25k arrays * 32 MAC/cycle * 100e6 Hz = 80TOPS
+they claim 20TOPS/W so perhaps it just consumes 4W power ? 
+
+problem is that total ADC energy = 22 * 1e-12 * 25000 * 100e6 = 55 J
+
+----
+
+Table II shows the component parameters of the proposed
+architecture. The energy is given in energy per unit (or module
+and PE) per operation (or bit). For example, the energy of
+ADC is 22.45 pJ/op, it is the energy for all the ADCs in
+one sub-array to process one operation, here the operation
+means once the sub-array is activated and given a vector of
+input pulse, the ADC will get one group of outputs from
+the sub-array. It should be noted that, considering about the
+area overhead, we have grouped the columns and shared every
+8 columns with one ADC. In order to get the outputs of all
+the columns in one sub-array, the ADCs need to work 8 oper-
+ations. Moreover, since the input precision is set to be 8-bit,
+the entire sub-array need to operate 8 times, and meanwhile
+these outputs will be shifted and accumulated. 
+
+In addition,
+in the PE level, the sub-array energy is 25.04 nJ/op, which
+tells the total energy for one single sub-array to do one
+8-bit vector-matrix multiplication (8-bit inputs multiply 8-bit
+weights and accumulate the dot-products). This includes all
+the operations in sub-array level as discussed, such as sharing
+and switching the ADCs among columns and shift-adds for
+high-precision inputs.
+
+----
+
+25.04 * 1e-9 / 8 / 8 * 25000 * 100e6
+nah they dont specify a clock ...
+we cud setup some equations to solve this tho.
+
+----
+
+our PE are wide, not tall. so they all require the same banwidth right ? 
+
+each PE in our design requires
+128 WLs * 8 XBIT / (8 XBIT * 8 COL) = 16 bit/cycle
+16b * 275 PE = 136 32b SRAMs ...
+scale up by 10 = 1360 SRAM.
+0.05 * 1360 = 68mm2 of SRAM ... still quite a bit ...
+
+Each of their PE = 4Kb @ 128 bit width
+which they claim is 0.0073 mm2 ...
+0.044 ... wtf ??
+
+----
+
+why do we have 2k array, 275 pe ? 
+why do we ever have a 16 ? 
+16 * 128 / 8 = 256. oh lol.
+
+2044 / 275 = 7.4
+still seems kinda high ...
+nah actually there is (4,8,16)
+
+----
+
+> were going to email.
+> topology
+> actually sending packets
+> gather scatter
+> link scaling
+
+---- 
+
+> it seems like all of these are dependent on figuring out some NoC structure
+> then we can send packets, do gather/scatter ect.
+
+> how do we do an actual topology
+  > each pe is a node in network ? 
+    > thats a lot of nodes.
+
+we can group more together, not like we need the bandwidth. 
+
+
+----
+
+
+
+
+
+
+
+
+
+
+
 
 
 
