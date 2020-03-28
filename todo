@@ -3,3 +3,7 @@
 > actually sending packets
 > gather scatter
 > link scaling
+
+ideas:
+> dealing with synchronization of layers moving different speed, x/w, w profiling causing different speeds
+> reusing IFMAPS
