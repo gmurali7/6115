@@ -9,11 +9,12 @@ from pim import *
 ##############################################
 
 class Network:
-    def __init__(self, ops, pe, pe_maps):
+    def __init__(self, ops, pe, pe_maps, accums):
         self.ops = ops
         self.pe = pe
         self.pe_maps = pe_maps
         self.num_layers = len(pe_maps)
+        self.accums = accums
 
     def forward(self, x):
         num_examples, _, _, _ = np.shape(x)
@@ -81,9 +82,13 @@ class Network:
                 if (a == 0): 
                     total_cycles += max_cycles
 
+            y[h, w, :] = self.accums[layer][a].reduce()
+            
+            '''
             for i in range(ah):
                 pe = self.pe_maps[layer][a][i]
                 y[h, w, :] += self.pe[pe].reduce()
+            '''
 
         y = y + b
         y = y * (y > 0)
@@ -171,21 +176,20 @@ class PE:
 ##############################################
 
 class Accumulator:
-    def __init__(self, pe, nadder):
+    def __init__(self, pe, nadder=16):
         self.pe = pe
         self.nadder = nadder
 
-    def accum(self):
+    def reduce(self):
         # can use nadder to get cycles.
         y = 0
         for pe in self.pe:
-            pe = self.pe_maps[layer][a][i]
-            y += self.pe[pe].reduce()
+            y += pe.reduce()
             
         self.y = y
         return y
 
-    def reduce(self):
+    def accum(self):
         ret = self.y
         self.y = 0
         return ret
@@ -224,8 +228,9 @@ class Model:
             nmac += self.layers[layer].nmac
             weights.append(self.layers[layer].cut(params=params))
 
-        pe = []
+        pes = []
         pe_maps = []
+        accums = []
         for layer in range(num_layers):
             p = self.layers[layer].nmac / nmac
             if (layer == 0):
@@ -237,18 +242,26 @@ class Model:
             nwl, _, nbl, _ = np.shape(weights[layer])
             pe_map = np.zeros(shape=(ndup, nwl), dtype=np.int32) 
             
+            accum = []
             for dup in range(ndup):
+                accum_pes = []
                 for wl in range(nwl):
                     arrays = []
                     for bl in range(nbl):
                         arrays.append(Array(weights=weights[layer][wl, :, bl, :], params=params))
 
-                    pe.append(PE(arrays=arrays))
-                    pe_map[dup][wl] = len(pe) - 1
+                    pe = PE(arrays=arrays)
+                    pes.append(pe)
+                    pe_map[dup][wl] = len(pes) - 1
+                    
+                    accum_pes.append(pe)
+                    
+                accum.append(Accumulator(pe=accum_pes))
 
             pe_maps.append(pe_map)
-                    
-        return pe, pe_maps
+            accums.append(accum)
+        
+        return pes, pe_maps, accums
                     
 ##############################################
 

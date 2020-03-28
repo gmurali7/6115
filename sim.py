@@ -51,8 +51,8 @@ Conv(input_size=(8,8,256), filter_size=(3,3,256,256), stride=2, pad1=1, pad2=1, 
 ]
 
 model = Model(layers=layers)
-pe, pe_maps = model.cut(params=params)
-network = Network(ops=model.ops(), pe=pe, pe_maps=pe_maps)
+pes, pe_maps, accums = model.cut(params=params)
+network = Network(ops=model.ops(), pe=pes, pe_maps=pe_maps, accums=accums)
 
 ####
 
