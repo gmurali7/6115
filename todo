@@ -7,3 +7,5 @@
 ideas:
 > dealing with synchronization of layers moving different speed, x/w, w profiling causing different speeds
 > reusing IFMAPS
+> a real NoC would have each block send packets with headers, then have those headers get decoded and traverse the NoC.
+

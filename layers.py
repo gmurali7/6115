@@ -170,6 +170,28 @@ class PE:
         
 ##############################################
 
+class Accumulator:
+    def __init__(self, pe, nadder):
+        self.pe = pe
+        self.nadder = nadder
+
+    def accum(self):
+        # can use nadder to get cycles.
+        y = 0
+        for pe in self.pe:
+            pe = self.pe_maps[layer][a][i]
+            y += self.pe[pe].reduce()
+            
+        self.y = y
+        return y
+
+    def reduce(self):
+        ret = self.y
+        self.y = 0
+        return ret
+
+##############################################
+
 class Model:
     def __init__(self, layers):
         self.layers = layers
