@@ -558,13 +558,6 @@ which they claim is 0.0073 mm2 ...
 
 ----
 
-> were going to email.
-> topology
-> link scaling
-> actually sending packets
-
-----
-
 why do we have 2k array, 275 pe ? 
 why do we ever have a 16 ? 
 16 * 128 / 8 = 256. oh lol.
@@ -575,13 +568,25 @@ nah actually there is (4,8,16)
 
 ----
 
+> were going to email.
+> topology
+> actually sending packets
+> gather scatter
+> link scaling
+
+---- 
+
+> it seems like all of these are dependent on figuring out some NoC structure
+> then we can send packets, do gather/scatter ect.
+
+> how do we do an actual topology
+  > each pe is a node in network ? 
+    > thats a lot of nodes.
+
+we can group more together, not like we need the bandwidth. 
 
 
-
-
-
-
-
+----
 
 
 
