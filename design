@@ -658,6 +658,27 @@ yeah really think the big thing will be different operating speeds of the PEs.
 
 -----
 
+> how do we model this chip at the cycle level ? 
+> we already have 2 different pieces. 
+
+but to make true cycle level means we cant do the whole patches thing = slow.
+well thats not entirely true, just means we have to do an extra step.
+like put the patches in there, but then load the whole thing to DRAM and send it around. 
+
+hmm that might actually not be that bad.
+yeah we can actually do this.
+do everything in C still, just do a few extra steps with performance counters. 
+
+we will have to come up with events unfortunately.
+wud we have to loop through all the circuit components ? 
+
+okay and lets revisit what buys us what.
+but i think start piece by piece.
+
+so is what we have done in 6115 worthless ? 
+
+-----
+
 
 
 
